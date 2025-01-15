@@ -185,6 +185,7 @@ namespace FacebookPanoPrepper.Forms
         private void DarkModeItem_Click(object sender, EventArgs e)
         {
             ThemeManager.ApplyTheme(this, _darkModeItem.Checked);
+            UpdateLogTextColors();
             this.Refresh();
         }
 
@@ -286,15 +287,23 @@ namespace FacebookPanoPrepper.Forms
                 _cancellationTokenSource?.Dispose();
                 _cancellationTokenSource = null;
 
-                logTextBox.AppendText(Environment.NewLine + batchReport.GetSummary());
+                AppendColoredText(Environment.NewLine + batchReport.GetSummary());
             }
         }
 
         private void AppendColoredText(string text)
         {
+            if (string.IsNullOrEmpty(text)) return;
+
             int startIndex = logTextBox.TextLength;
             logTextBox.AppendText(text);
 
+            // First, set the default color for the entire text
+            logTextBox.SelectionStart = startIndex;
+            logTextBox.SelectionLength = text.Length;
+            logTextBox.SelectionColor = ThemeManager.GetTextColor();
+
+            // Then process any color codes
             string[] parts = text.Split(new[] { "|c", "|" }, StringSplitOptions.None);
             int currentIndex = startIndex;
 
@@ -309,6 +318,22 @@ namespace FacebookPanoPrepper.Forms
                 }
                 currentIndex += parts[i].Length;
             }
+
+            // Reset selection
+            logTextBox.SelectionStart = logTextBox.TextLength;
+            logTextBox.SelectionLength = 0;
+        }
+
+        private void UpdateLogTextColors()
+        {
+            if (logTextBox.TextLength == 0) return;
+
+            // Store the current text
+            string currentText = logTextBox.Text;
+
+            // Clear and reapply the text with new colors
+            logTextBox.Clear();
+            AppendColoredText(currentText);
         }
     }
 }
