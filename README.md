@@ -24,7 +24,7 @@ A Windows desktop application that helps prepare panoramic images for optimal di
 
 ## Installation
 
-1. Download the latest release from the [Releases](link-to-releases) page
+1. Download the latest release from the [releases page](https://github.com/username/FacebookPanoPrepper/releases/latest) page
 2. Extract the ZIP file to your preferred location
 3. Run `FacebookPanoPrepper.exe`
 
