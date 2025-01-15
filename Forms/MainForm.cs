@@ -21,7 +21,7 @@ namespace FacebookPanoPrepper.Forms
         private MenuStrip _menuStrip;
         private StatusStrip _statusStrip;
         private ToolStripStatusLabel _statusLabel;
-        private ToolStripProgressBar _statusProgress;
+        private DarkProgressBar _statusProgress;
         private CancellationTokenSource? _cancellationTokenSource;
         private ToolStripMenuItem _viewMenu;
         private ToolStripMenuItem _darkModeItem;
@@ -71,13 +71,12 @@ namespace FacebookPanoPrepper.Forms
                     Dock = DockStyle.Fill
                 };
 
-                // Just modify this part for the label
                 dropLabel = new Label
                 {
                     Text = "Drag and drop panorama images here",
-                    TextAlign = ContentAlignment.MiddleCenter,  
-                    Dock = DockStyle.Fill,                    
-                    Font = new Font("Segoe UI", 14),          
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Dock = DockStyle.Fill,
+                    Font = new Font("Segoe UI", 14),
                     BackColor = Color.Transparent
                 };
 
@@ -91,7 +90,7 @@ namespace FacebookPanoPrepper.Forms
                 {
                     Dock = DockStyle.Fill,
                     ReadOnly = true,
-                    BackColor = Color.White,
+                    BackColor = ThemeManager.GetCurrentScheme().Background,
                     Font = new Font("Consolas", 9, FontStyle.Regular, GraphicsUnit.Point)
                 };
 
@@ -113,6 +112,16 @@ namespace FacebookPanoPrepper.Forms
 
                 // Initialize Status Strip
                 InitializeStatusStrip();
+
+                // Now apply the theme colors
+                if (ThemeManager.IsDarkMode)
+                {
+                    var scheme = ThemeManager.GetCurrentScheme();
+                    logTextBox.BackColor = scheme.Background;
+                    _statusStrip.BackColor = scheme.StatusStripBackground;
+                    _statusProgress.BackColor = scheme.ScrollBarBackground;
+                    _statusProgress.ForeColor = scheme.StatusProgressBar;
+                }
             }
             catch (Exception ex)
             {
@@ -141,8 +150,13 @@ namespace FacebookPanoPrepper.Forms
 
             // View Menu
             _viewMenu = new ToolStripMenuItem("View");
-            _darkModeItem = new ToolStripMenuItem("Dark Mode");
-            _darkModeItem.CheckOnClick = true;
+            _darkModeItem = new ToolStripMenuItem("Dark Mode")
+            {
+                CheckOnClick = true,
+                // Set default colors to ensure visibility
+                BackColor = ThemeManager.GetCurrentScheme().Background,
+                ForeColor = ThemeManager.GetCurrentScheme().Text
+            };
             _darkModeItem.Click += DarkModeItem_Click;
             _viewMenu.DropDownItems.Add(_darkModeItem);
 
@@ -156,16 +170,44 @@ namespace FacebookPanoPrepper.Forms
             _menuStrip.Items.Add(_viewMenu);
             _menuStrip.Items.Add(helpMenu);
 
+            // Ensure menu strip has correct colors
+            _menuStrip.BackColor = ThemeManager.GetCurrentScheme().Background;
+            _menuStrip.ForeColor = ThemeManager.GetCurrentScheme().Text;
+
             this.Controls.Add(_menuStrip);
         }
 
         private void InitializeStatusStrip()
         {
-            _statusStrip = new StatusStrip();
+            _statusStrip = new StatusStrip
+            {
+                BackColor = ThemeManager.GetCurrentScheme().StatusStripBackground,
+                Padding = new Padding(1, 0, 16, 0)
+            };
+
             _statusLabel = new ToolStripStatusLabel("Ready");
-            _statusProgress = new ToolStripProgressBar();
+
+            var darkProgressBar = new DarkProgressBar
+            {
+                Width = 100,
+                Height = 16,
+                Style = ProgressBarStyle.Continuous,
+                BackColor = ThemeManager.GetCurrentScheme().ScrollBarBackground,
+                ForeColor = ThemeManager.GetCurrentScheme().StatusProgressBar
+            };
+
+            var progressPanel = new ToolStripControlHost(darkProgressBar)
+            {
+                AutoSize = false,
+                Width = 100,
+                Margin = new Padding(1, 3, 1, 3)
+            };
+
+            _statusProgress = darkProgressBar;
+
             _statusStrip.Items.Add(_statusLabel);
-            _statusStrip.Items.Add(_statusProgress);
+            _statusStrip.Items.Add(progressPanel);
+
             this.Controls.Add(_statusStrip);
         }
 
@@ -185,6 +227,14 @@ namespace FacebookPanoPrepper.Forms
         private void DarkModeItem_Click(object sender, EventArgs e)
         {
             ThemeManager.ApplyTheme(this, _darkModeItem.Checked);
+
+            // Force update the colors
+            var scheme = ThemeManager.GetCurrentScheme();
+            logTextBox.BackColor = scheme.Background;
+            _statusStrip.BackColor = scheme.StatusStripBackground;
+            _statusProgress.BackColor = scheme.ScrollBarBackground;
+            _statusProgress.ForeColor = scheme.StatusProgressBar;
+
             UpdateLogTextColors();
             this.Refresh();
         }
@@ -328,12 +378,18 @@ namespace FacebookPanoPrepper.Forms
         {
             if (logTextBox.TextLength == 0) return;
 
-            // Store the current text
+            // Store the current text and clear the box
             string currentText = logTextBox.Text;
-
-            // Clear and reapply the text with new colors
             logTextBox.Clear();
+
+            // Set the default text color based on the current theme
+            logTextBox.SelectionColor = ThemeManager.GetTextColor();
+
+            // Reapply the text with proper colors
             AppendColoredText(currentText);
+
+            // Ensure the text box is using the correct background color
+            logTextBox.BackColor = ThemeManager.GetCurrentScheme().Background;
         }
     }
 }

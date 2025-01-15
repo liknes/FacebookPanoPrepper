@@ -7,7 +7,7 @@ namespace FacebookPanoPrepper.Helpers
 {
     public static class ThemeManager
     {
-        private class ColorScheme
+        public class ColorScheme
         {
             public Color Background { get; set; }
             public Color Text { get; set; }
@@ -18,6 +18,10 @@ namespace FacebookPanoPrepper.Helpers
             public Color Section { get; set; }
             public Color ProgressBarBackground { get; set; }
             public Color ProgressBarForeground { get; set; }
+            public Color ScrollBarBackground { get; set; }
+            public Color ScrollBarThumb { get; set; }
+            public Color StatusStripBackground { get; set; }
+            public Color StatusProgressBar { get; set; }
         }
 
         private static class ColorSchemes
@@ -32,7 +36,11 @@ namespace FacebookPanoPrepper.Helpers
                 DropZone = Color.WhiteSmoke,
                 Section = Color.FromArgb(240, 240, 240),
                 ProgressBarBackground = SystemColors.Control,
-                ProgressBarForeground = SystemColors.Highlight
+                ProgressBarForeground = SystemColors.Highlight,
+                ScrollBarBackground = SystemColors.Control,
+                ScrollBarThumb = SystemColors.ControlDark,
+                StatusStripBackground = Color.FromArgb(240, 240, 240),
+                StatusProgressBar = SystemColors.Highlight
             };
 
             public static readonly ColorScheme Dark = new ColorScheme
@@ -45,7 +53,11 @@ namespace FacebookPanoPrepper.Helpers
                 DropZone = Color.FromArgb(45, 45, 48),
                 Section = Color.FromArgb(50, 50, 50),
                 ProgressBarBackground = Color.FromArgb(45, 45, 45),
-                ProgressBarForeground = Color.FromArgb(0, 120, 215)
+                ProgressBarForeground = Color.FromArgb(0, 120, 215),
+                ScrollBarBackground = Color.FromArgb(30, 30, 30),    // Darker background
+                ScrollBarThumb = Color.FromArgb(80, 80, 80),        // Lighter thumb
+                StatusStripBackground = Color.FromArgb(28, 28, 28),  // Slightly darker than main background
+                StatusProgressBar = Color.FromArgb(0, 120, 215)      // Windows blue
             };
         }
 
@@ -95,7 +107,7 @@ namespace FacebookPanoPrepper.Helpers
                     label.ForeColor = colors.Text;
                     break;
                 case RichTextBox rtb:
-                    rtb.BackColor = colors.Section;
+                    rtb.BackColor = colors.Background;  // Use the main background color
                     break;
                 case DarkProgressBar _:
                     control.Invalidate();
@@ -109,16 +121,21 @@ namespace FacebookPanoPrepper.Helpers
                     }
                     break;
                 case StatusStrip statusStrip:
-                    statusStrip.BackColor = colors.Background;
-                    statusStrip.ForeColor = colors.Text;
+                    statusStrip.BackColor = colors.StatusStripBackground;
                     foreach (ToolStripItem item in statusStrip.Items)
                     {
-                        if (item is ToolStripProgressBar statusProgress)
+                        if (item is ToolStripProgressBar progressBar)
                         {
-                            statusProgress.BackColor = colors.ProgressBarBackground;
-                            statusProgress.ForeColor = colors.ProgressBarForeground;
+                            progressBar.BackColor = colors.ScrollBarBackground;
+                            progressBar.ForeColor = colors.StatusProgressBar;
+                        }
+                        else if (item is ToolStripStatusLabel label)
+                        {
+                            label.BackColor = colors.StatusStripBackground;
+                            label.ForeColor = colors.Text;
                         }
                     }
+                    statusStrip.Refresh();
                     break;
                 default:
                     control.BackColor = colors.Background;
@@ -149,6 +166,21 @@ namespace FacebookPanoPrepper.Helpers
         private static void SetProgressBarColor(ProgressBar pBar, Color color)
         {
             SendMessage(pBar.Handle, 0x409, IntPtr.Zero, IntPtr.Zero);
+        }
+
+        public static ColorScheme GetCurrentScheme()
+        {
+            return IsDarkMode ? ColorSchemes.Dark : ColorSchemes.Light;
+        }
+
+        public static ColorScheme GetDarkScheme()
+        {
+            return ColorSchemes.Dark;
+        }
+
+        public static ColorScheme GetLightScheme()
+        {
+            return ColorSchemes.Light;
         }
     }
 }
