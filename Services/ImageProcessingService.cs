@@ -17,22 +17,30 @@ public class ImageProcessingService
     }
 
     public async Task<ProcessingReport> ProcessImageAsync(string inputPath, string outputPath,
-        IProgress<int>? progress = null)
+    IProgress<int>? progress = null)
     {
         var report = new ProcessingReport
         {
             FileName = Path.GetFileName(inputPath),
+            OutputPath = outputPath,
             ProcessedDate = DateTime.UtcNow
         };
 
         try
         {
+            // Ensure output directory exists
+            string outputDir = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
+            {
+                Directory.CreateDirectory(outputDir);
+            }
+
             // Load the original image
             using var originalImage = Image.FromFile(inputPath);
             report.OriginalSpecs = GetImageSpecs(originalImage, new FileInfo(inputPath).Length);
 
-            // Process image (resize and/or correct aspect ratio if needed)
-            using var processedImage = await ProcessImageWithOptionsAsync(originalImage);
+            // Create a new bitmap from the original
+            using var processedImage = new Bitmap(originalImage);
 
             // Save with metadata
             await SaveProcessedImageAsync(processedImage, outputPath, _options.JpegQuality);
@@ -133,6 +141,13 @@ public class ImageProcessingService
         {
             try
             {
+                // Create temp directory if it doesn't exist
+                string tempDir = Path.GetDirectoryName(outputPath) ?? string.Empty;
+                if (!string.IsNullOrEmpty(tempDir) && !Directory.Exists(tempDir))
+                {
+                    Directory.CreateDirectory(tempDir);
+                }
+
                 // First save the image with quality settings
                 var encoderParameters = new EncoderParameters(1);
                 encoderParameters.Param[0] = new EncoderParameter(Encoder.Quality, quality);
