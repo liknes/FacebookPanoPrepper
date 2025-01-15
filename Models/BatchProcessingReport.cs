@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using FacebookPanoPrepper.Helpers;
+using System.Text;
 
 namespace FacebookPanoPrepper.Models
 {
@@ -14,13 +15,18 @@ namespace FacebookPanoPrepper.Models
         public string GetSummary()
         {
             var summary = new StringBuilder();
-            summary.AppendLine("Batch Processing Summary");
-            summary.AppendLine("=======================");
-            summary.AppendLine($"Total Files: {TotalFiles}");
-            summary.AppendLine($"Successfully Processed: {SuccessfulFiles}");
-            summary.AppendLine($"Failed: {TotalFiles - SuccessfulFiles}");
-            summary.AppendLine($"Processing Time: {ProcessingTime.TotalSeconds:F1} seconds");
-            summary.AppendLine($"Average Time per File: {(ProcessingTime.TotalSeconds / TotalFiles):F1} seconds");
+
+            // Use the current theme text color
+            string textColor = $"|c{ThemeManager.GetTextColor().ToArgb()}|";
+
+            summary.Append(textColor)
+                .AppendLine("Batch Processing Summary")
+                .AppendLine("=======================")
+                .AppendLine($"Total Files: {TotalFiles}")
+                .AppendLine($"Successfully Processed: {SuccessfulFiles}")
+                .AppendLine($"Failed: {TotalFiles - SuccessfulFiles}")
+                .AppendLine($"Processing Time: {ProcessingTime.TotalSeconds:F1} seconds")
+                .AppendLine($"Average Time per File: {(TotalFiles > 0 ? ProcessingTime.TotalSeconds / TotalFiles : 0):F1} seconds");
 
             return summary.ToString();
         }

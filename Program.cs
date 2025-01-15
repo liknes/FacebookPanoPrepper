@@ -18,18 +18,74 @@ static class Program
 
         if (args.Contains("--gui") || args.Length == 0)
         {
+            ApplicationConfiguration.Initialize(); // Add this line
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            var form = services.GetRequiredService<MainForm>();
-            Application.Run(form);
+            try
+            {
+                var form = services.GetRequiredService<MainForm>();
+                Application.Run(form);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error initializing application: {ex.Message}\n\n{ex.StackTrace}",
+                    "Initialization Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
         else
         {
             var processor = services.GetRequiredService<ImageProcessingService>();
             RunConsoleMode(args, processor);
         }
+    }
+
+    private static IServiceProvider ConfigureServices()
+    {
+        var services = new ServiceCollection();
+
+        // Ensure Windows Forms context is initialized
+        if (Application.OpenForms.Count == 0)
+        {
+            Thread.CurrentThread.SetApartmentState(ApartmentState.STA);
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+        }
+
+        // Load settings if they exist
+        ProcessingOptions options;
+        if (File.Exists("settings.json"))
+        {
+            try
+            {
+                string json = File.ReadAllText("settings.json");
+                options = JsonSerializer.Deserialize<ProcessingOptions>(json)
+                    ?? new ProcessingOptions();
+            }
+            catch (Exception)
+            {
+                options = new ProcessingOptions();
+            }
+        }
+        else
+        {
+            options = new ProcessingOptions();
+        }
+
+        services.AddLogging(builder =>
+        {
+            builder.AddConsole();
+            builder.AddDebug();
+        });
+
+        services.AddSingleton(options);
+        services.AddSingleton<ImageProcessingService>();
+        services.AddTransient<MainForm>();
+
+        return services.BuildServiceProvider();
     }
 
     private static void RunConsoleMode(string[] args, ImageProcessingService processor)
@@ -88,43 +144,5 @@ static class Program
         }
 
         Console.WriteLine("\nProcessing complete!");
-    }
-
-    private static IServiceProvider ConfigureServices()
-    {
-        var services = new ServiceCollection();
-
-        // Load settings if they exist
-        ProcessingOptions options;
-        if (File.Exists("settings.json"))
-        {
-            try
-            {
-                string json = File.ReadAllText("settings.json");
-                options = JsonSerializer.Deserialize<ProcessingOptions>(json)
-                    ?? new ProcessingOptions();
-            }
-            catch (Exception)
-            {
-                // If there's any error reading the settings, use defaults
-                options = new ProcessingOptions();
-            }
-        }
-        else
-        {
-            options = new ProcessingOptions();
-        }
-
-        services.AddLogging(builder =>
-        {
-            builder.AddConsole();
-            builder.AddDebug();
-        });
-
-        services.AddSingleton(options);
-        services.AddSingleton<ImageProcessingService>();
-        services.AddTransient<MainForm>();
-
-        return services.BuildServiceProvider();
     }
 }

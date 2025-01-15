@@ -64,7 +64,7 @@ namespace FacebookPanoPrepper.Models
             string statusColor = Success ?
                 $"|c{ThemeManager.GetSuccessColor().ToArgb()}|" :
                 $"|c{ThemeManager.GetErrorColor().ToArgb()}|";
-            summary.AppendLine($"║ Status: {statusColor}{(Success ? "✓ Success" : "✗ Failed")}|c{ThemeManager.GetTextColor().ToArgb()}|");
+            summary.AppendLine($"║ Status: {statusColor}{(Success ? "✓ Success" : "✗ Failed")}|");
 
             if (Success)
             {
@@ -86,7 +86,7 @@ namespace FacebookPanoPrepper.Models
                 summary.AppendLine("║ Warnings:");
                 foreach (var warning in Warnings)
                 {
-                    summary.AppendLine($"║   {$"|c{ThemeManager.GetWarningColor().ToArgb()}|⚠|c{ThemeManager.GetTextColor().ToArgb()}|"} {warning}");
+                    summary.AppendLine($"║   {$"|c{ThemeManager.GetWarningColor().ToArgb()}|⚠|"} {warning}");
                 }
             }
 
