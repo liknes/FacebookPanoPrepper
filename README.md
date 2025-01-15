@@ -19,7 +19,7 @@ A Windows desktop application that helps prepare panoramic images for optimal di
 ## Requirements
 
 - Windows OS
-- .NET 6.0 or later
+- .NET 8.0 or later
 - Sufficient disk space for image processing
 
 ## Installation
@@ -74,7 +74,7 @@ A Windows desktop application that helps prepare panoramic images for optimal di
 ## Technical Details
 
 Built using:
-- C# (.NET 6.0)
+- C# (.NET 8.0)
 - Windows Forms
 - Microsoft.Extensions.Logging
 - Custom image processing services
