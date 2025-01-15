@@ -91,7 +91,8 @@ namespace FacebookPanoPrepper.Forms
                     Dock = DockStyle.Fill,
                     ReadOnly = true,
                     BackColor = ThemeManager.GetCurrentScheme().Background,
-                    Font = new Font("Consolas", 9, FontStyle.Regular, GraphicsUnit.Point)
+                    Font = new Font("Consolas", 9, FontStyle.Regular, GraphicsUnit.Point),
+                    TabStop = false  // Prevent tab focus
                 };
 
                 // Add controls to form
@@ -139,6 +140,7 @@ namespace FacebookPanoPrepper.Forms
 
             // File Menu
             var fileMenu = new ToolStripMenuItem("File");
+            fileMenu.DropDownOpening += MenuStrip_ItemClicked;
             var settingsItem = new ToolStripMenuItem("Settings...");
             settingsItem.Click += SettingsItem_Click;
             var exitItem = new ToolStripMenuItem("Exit");
@@ -150,10 +152,10 @@ namespace FacebookPanoPrepper.Forms
 
             // View Menu
             _viewMenu = new ToolStripMenuItem("View");
+            _viewMenu.DropDownOpening += MenuStrip_ItemClicked;
             _darkModeItem = new ToolStripMenuItem("Dark Mode")
             {
                 CheckOnClick = true,
-                // Set default colors to ensure visibility
                 BackColor = ThemeManager.GetCurrentScheme().Background,
                 ForeColor = ThemeManager.GetCurrentScheme().Text
             };
@@ -162,6 +164,7 @@ namespace FacebookPanoPrepper.Forms
 
             // Help Menu
             var helpMenu = new ToolStripMenuItem("Help");
+            helpMenu.DropDownOpening += MenuStrip_ItemClicked;
             var aboutItem = new ToolStripMenuItem("About");
             aboutItem.Click += (s, e) => ShowAboutDialog();
             helpMenu.DropDownItems.Add(aboutItem);
@@ -170,11 +173,19 @@ namespace FacebookPanoPrepper.Forms
             _menuStrip.Items.Add(_viewMenu);
             _menuStrip.Items.Add(helpMenu);
 
-            // Ensure menu strip has correct colors
             _menuStrip.BackColor = ThemeManager.GetCurrentScheme().Background;
             _menuStrip.ForeColor = ThemeManager.GetCurrentScheme().Text;
 
             this.Controls.Add(_menuStrip);
+        }
+
+        private void MenuStrip_ItemClicked(object sender, EventArgs e)
+        {
+            if (sender is ToolStripMenuItem menuItem)
+            {
+                // Force focus to the menu item
+                menuItem.Select();
+            }
         }
 
         private void InitializeStatusStrip()
