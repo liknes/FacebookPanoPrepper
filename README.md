@@ -85,11 +85,9 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-[Add your chosen license here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
-
-- [Add any acknowledgments, libraries used, etc.]
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Support
 
@@ -97,11 +95,3 @@ For issues, questions, or suggestions, please:
 1. Check the [Issues](link-to-issues) page
 2. Create a new issue if needed
 3. Provide detailed information about your problem
-
-## Screenshots
-
-[Add screenshots of your application here, showing:
-- Main interface
-- Dark/Light themes
-- Settings window
-- Processing in action]
