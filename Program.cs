@@ -1,59 +1,108 @@
-﻿using FacebookPanoPrepper.Services;
+﻿using System;
+using System.Windows.Forms;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using FacebookPanoPrepper.Forms;
+using FacebookPanoPrepper.Services;
+using FacebookPanoPrepper.Models;
 
 namespace FacebookPanoPrepper;
 
-class Program
+static class Program
 {
+    [STAThread]
     static void Main(string[] args)
     {
-        Console.WriteLine("FacebookPanoPrepper - 360° Panorama Preparation Tool");
-        Console.WriteLine("================================================");
-        Console.WriteLine("\nFacebook 360 Photo Requirements:");
-        Console.WriteLine("- Maximum dimension: 30,000 pixels");
-        Console.WriteLine("- Maximum total pixels: 135,000,000");
-        Console.WriteLine("- Recommended aspect ratio: 2:1");
-        Console.WriteLine("- Recommended maximum file size: 30MB");
-        Console.WriteLine("- Absolute maximum file size: 45MB");
-        Console.WriteLine("- Format: JPEG recommended");
+        var services = ConfigureServices();
 
-        Console.WriteLine("\nEnter the folder path containing panorama images:");
-        string folderPath = Console.ReadLine() ?? string.Empty;
+        if (args.Contains("--gui") || args.Length == 0)
+        {
+            Application.SetHighDpiMode(HighDpiMode.SystemAware);
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
 
+            var form = services.GetRequiredService<MainForm>();
+            Application.Run(form);
+        }
+        else
+        {
+            var processor = services.GetRequiredService<ImageProcessingService>();
+            RunConsoleMode(args, processor);
+        }
+    }
+
+    private static void RunConsoleMode(string[] args, ImageProcessingService processor)
+    {
+        Console.WriteLine("Facebook Pano Prepper - Console Mode");
+        Console.WriteLine("===================================");
+
+        if (args.Length < 1)
+        {
+            Console.WriteLine("Usage: FacebookPanoPrepper <folder_path>");
+            return;
+        }
+
+        string folderPath = args[0];
         if (!Directory.Exists(folderPath))
         {
-            Console.WriteLine("Folder not found!");
+            Console.WriteLine("Error: Folder not found!");
             return;
         }
 
-        // Create output folder
-        string outputFolder = Path.Combine(folderPath, "360_processed");
-        Directory.CreateDirectory(outputFolder);
-
-        // Get all jpg/jpeg files
-        var imageFiles = Directory.GetFiles(folderPath, "*.*")
-            .Where(file => new[] { ".jpg", ".jpeg" }
-            .Contains(Path.GetExtension(file).ToLower()))
+        var files = Directory.GetFiles(folderPath, "*.*")
+            .Where(f => new[] { ".jpg", ".jpeg" }
+            .Contains(Path.GetExtension(f).ToLower()))
             .ToList();
 
-        if (!imageFiles.Any())
+        if (!files.Any())
         {
-            Console.WriteLine("No JPEG images found in the folder!");
+            Console.WriteLine("No JPEG images found in the specified folder.");
             return;
         }
 
-        Console.WriteLine($"\nFound {imageFiles.Count} JPEG files to process.");
+        Console.WriteLine($"Found {files.Count} image(s) to process.");
 
-        var processor = new ImageProcessor();
-        int successCount = 0;
-        foreach (string imagePath in imageFiles)
+        foreach (var file in files)
         {
-            processor.ProcessImage(imagePath, outputFolder);
-            successCount++;
+            Console.WriteLine($"\nProcessing: {Path.GetFileName(file)}");
+            try
+            {
+                var outputPath = Path.Combine(
+                    Path.GetDirectoryName(file) ?? string.Empty,
+                    "360_" + Path.GetFileName(file)
+                );
+
+                var progress = new Progress<int>(percent =>
+                {
+                    Console.Write($"\rProgress: {percent}%");
+                });
+
+                var report = processor.ProcessImageAsync(file, outputPath, progress).Result;
+                Console.WriteLine(report.GetSummary());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error processing {Path.GetFileName(file)}: {ex.Message}");
+            }
         }
 
-        Console.WriteLine($"\nProcessing complete! Successfully processed {successCount} of {imageFiles.Count} images.");
-        Console.WriteLine($"Processed images can be found in: {outputFolder}");
-        Console.WriteLine("\nPress any key to exit.");
-        Console.ReadKey();
+        Console.WriteLine("\nProcessing complete!");
+    }
+
+    private static IServiceProvider ConfigureServices()
+    {
+        var services = new ServiceCollection();
+
+        services.AddLogging(builder =>
+        {
+            builder.AddConsole();
+            builder.AddDebug();
+        });
+
+        services.AddSingleton(new ProcessingOptions());
+        services.AddSingleton<ImageProcessingService>();
+        services.AddTransient<MainForm>();
+
+        return services.BuildServiceProvider();
     }
 }
