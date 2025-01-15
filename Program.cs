@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using FacebookPanoPrepper.Forms;
 using FacebookPanoPrepper.Services;
 using FacebookPanoPrepper.Models;
+using System.Text.Json;
 
 namespace FacebookPanoPrepper;
 
@@ -93,13 +94,34 @@ static class Program
     {
         var services = new ServiceCollection();
 
+        // Load settings if they exist
+        ProcessingOptions options;
+        if (File.Exists("settings.json"))
+        {
+            try
+            {
+                string json = File.ReadAllText("settings.json");
+                options = JsonSerializer.Deserialize<ProcessingOptions>(json)
+                    ?? new ProcessingOptions();
+            }
+            catch (Exception)
+            {
+                // If there's any error reading the settings, use defaults
+                options = new ProcessingOptions();
+            }
+        }
+        else
+        {
+            options = new ProcessingOptions();
+        }
+
         services.AddLogging(builder =>
         {
             builder.AddConsole();
             builder.AddDebug();
         });
 
-        services.AddSingleton(new ProcessingOptions());
+        services.AddSingleton(options);
         services.AddSingleton<ImageProcessingService>();
         services.AddTransient<MainForm>();
 

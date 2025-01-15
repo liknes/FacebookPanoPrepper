@@ -1,10 +1,7 @@
-﻿using System;
-using System.Drawing;
-using System.Windows.Forms;
-using System.Threading.Tasks;
-using System.Linq;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using FacebookPanoPrepper.Services;
+using FacebookPanoPrepper.Models;
+using FacebookPanoPrepper.Helpers;
 
 namespace FacebookPanoPrepper.Forms
 {
@@ -12,6 +9,7 @@ namespace FacebookPanoPrepper.Forms
     {
         private readonly ImageProcessingService _processingService;
         private readonly ILogger<MainForm> _logger;
+        private readonly ProcessingOptions _options;
 
         // Form controls
         private TableLayoutPanel tableLayoutPanel;
@@ -19,11 +17,19 @@ namespace FacebookPanoPrepper.Forms
         private Label dropLabel;
         private ProgressBar progressBar;
         private RichTextBox logTextBox;
+        private MenuStrip _menuStrip;
+        private StatusStrip _statusStrip;
+        private ToolStripStatusLabel _statusLabel;
+        private ToolStripProgressBar _statusProgress;
+        private CancellationTokenSource? _cancellationTokenSource;
+        private ToolStripMenuItem _viewMenu;
+        private ToolStripMenuItem _darkModeItem;
 
-        public MainForm(ImageProcessingService processingService, ILogger<MainForm> logger)
+        public MainForm(ImageProcessingService processingService, ILogger<MainForm> logger, ProcessingOptions options)
         {
             _processingService = processingService;
             _logger = logger;
+            _options = options;
 
             // Initialize the form
             InitializeFormControls();
@@ -86,6 +92,69 @@ namespace FacebookPanoPrepper.Forms
             tableLayoutPanel.Controls.Add(logTextBox, 0, 2);
 
             this.Controls.Add(tableLayoutPanel);
+
+            // Initialize Menu Strip
+            _menuStrip = new MenuStrip();
+            var fileMenu = new ToolStripMenuItem("File");
+            var settingsItem = new ToolStripMenuItem("Settings...");
+            settingsItem.Click += SettingsItem_Click;
+            var exitItem = new ToolStripMenuItem("Exit");
+            exitItem.Click += (s, e) => this.Close();
+
+            fileMenu.DropDownItems.Add(settingsItem);
+            fileMenu.DropDownItems.Add(new ToolStripSeparator());
+            fileMenu.DropDownItems.Add(exitItem);
+
+            _viewMenu = new ToolStripMenuItem("View");
+            _darkModeItem = new ToolStripMenuItem("Dark Mode");
+            _darkModeItem.CheckOnClick = true;
+            _darkModeItem.Click += DarkModeItem_Click;
+            _viewMenu.DropDownItems.Add(_darkModeItem);
+
+            _menuStrip.Items.Add(fileMenu);
+            _menuStrip.Items.Add(_viewMenu);
+
+            // Initialize Status Strip
+            _statusStrip = new StatusStrip();
+            _statusLabel = new ToolStripStatusLabel("Ready");
+            _statusProgress = new ToolStripProgressBar();
+            _statusStrip.Items.Add(_statusLabel);
+            _statusStrip.Items.Add(_statusProgress);
+
+            // Add Menu and Status strips to form
+            this.Controls.Add(_menuStrip);
+            this.Controls.Add(_statusStrip);
+
+            // Update log text box properties
+            logTextBox.ReadOnly = true;
+            logTextBox.Font = new Font("Consolas", 9F);
+            logTextBox.BackColor = SystemColors.Window;
+        }
+
+        private void DarkModeItem_Click(object sender, EventArgs e)
+        {
+            ThemeManager.ApplyTheme(this, _darkModeItem.Checked);
+        }
+
+        private void AppendColoredText(string text)
+        {
+            int startIndex = logTextBox.TextLength;
+            logTextBox.AppendText(text);
+
+            string[] parts = text.Split(new[] { "|c", "|" }, StringSplitOptions.None);
+            int currentIndex = startIndex;
+
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (i % 2 == 1 && int.TryParse(parts[i], out int argb))
+                {
+                    logTextBox.SelectionStart = currentIndex;
+                    logTextBox.SelectionLength = parts[i + 1].Length;
+                    logTextBox.SelectionColor = Color.FromArgb(argb);
+                    i++; // Skip the next part as we've already processed it
+                }
+                currentIndex += parts[i].Length;
+            }
         }
 
         private void SetupDragDrop()
@@ -112,33 +181,66 @@ namespace FacebookPanoPrepper.Forms
             }
         }
 
+        private void SettingsItem_Click(object sender, EventArgs e)
+        {
+            using var settingsForm = new SettingsForm(_options);
+            if (settingsForm.ShowDialog(this) == DialogResult.OK)
+            {
+                // Settings were saved
+                _statusLabel.Text = "Settings updated";
+            }
+        }
+
         private async Task ProcessFilesAsync(string[] files)
         {
-            progressBar.Maximum = files.Length;
-            progressBar.Value = 0;
+            _statusProgress.Maximum = files.Length;
+            _statusProgress.Value = 0;
             dropLabel.Text = "Processing...";
             logTextBox.Clear();
 
+            var batchReport = new BatchProcessingReport
+            {
+                TotalFiles = files.Length,
+                StartTime = DateTime.Now
+            };
+
             try
             {
-                foreach (var file in files)
+                // Create base output directory if it doesn't exist
+                string baseOutputDir = Path.GetFullPath(_options.OutputFolder);  // Convert to full path
+                if (!Directory.Exists(baseOutputDir))
                 {
+                    Directory.CreateDirectory(baseOutputDir);
+                }
+
+                _cancellationTokenSource = new CancellationTokenSource();
+
+                for (int i = 0; i < files.Length; i++)
+                {
+                    if (_cancellationTokenSource.Token.IsCancellationRequested)
+                        break;
+
+                    var file = files[i];
+                    _statusLabel.Text = $"Processing {i + 1} of {files.Length}: {Path.GetFileName(file)}";
+
+                    // Create output path using the full path
                     var outputPath = Path.Combine(
-                        Path.GetDirectoryName(file) ?? string.Empty,
+                        baseOutputDir,
                         "360_" + Path.GetFileName(file)
                     );
 
                     var progress = new Progress<int>(value =>
                     {
-                        progressBar.Value = value;
+                        _statusProgress.Value = value;
                     });
 
                     var report = await _processingService.ProcessImageAsync(file, outputPath, progress);
-                    logTextBox.AppendText(report.GetSummary() + Environment.NewLine);
-                    progressBar.Value++;
-                }
+                    batchReport.Reports.Add(report);
+                    if (report.Success) batchReport.SuccessfulFiles++;
 
-                MessageBox.Show("Processing complete!", "Success", MessageBoxButtons.OK);
+                    AppendColoredText(report.GetRichTextSummary());
+                    _statusProgress.Value = i + 1;
+                }
             }
             catch (Exception ex)
             {
@@ -147,8 +249,16 @@ namespace FacebookPanoPrepper.Forms
             }
             finally
             {
+                batchReport.EndTime = DateTime.Now;
+                batchReport.ProcessingTime = batchReport.EndTime - batchReport.StartTime;
+
+                _statusLabel.Text = $"Completed: {batchReport.SuccessfulFiles} of {batchReport.TotalFiles} files processed successfully";
                 dropLabel.Text = "Drag and drop panorama images here";
-                progressBar.Value = 0;
+                _statusProgress.Value = 0;
+                _cancellationTokenSource?.Dispose();
+                _cancellationTokenSource = null;
+
+                logTextBox.AppendText(Environment.NewLine + batchReport.GetSummary());
             }
         }
     }
