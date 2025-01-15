@@ -1,6 +1,6 @@
 # Facebook Pano Prepper
 
-A Windows desktop application that helps prepare panoramic images for optimal display on Facebook by adding the required metadata and adjusting image properties to ensure proper 360-degree viewing.
+A Windows desktop application that helps prepare panoramic images for optimal display on Facebook by adding the required metadata and adjusting image properties to ensure proper 360-degree viewing. Today many cameras, DJI Drones for example, create images that Facebook will identify as panoramic images. If you resize the images or do any kind of work on them, you will have to use an application like Facebook Pano Prepper to fix the meta tags so that Facebook correctly display them as 360 panoramic images.
 
 ## Features
 
