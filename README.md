@@ -41,6 +41,8 @@ A Windows desktop application that helps prepare panoramic images for optimal di
 
 ## Usage
 
+Check the Wiki for a more detailed description on where to find the files to upload to Facebook
+
 1. **Launch the Application**
    - Start FacebookPanoPrepper.exe
    - The main window will display a drop zone for your images
