@@ -56,24 +56,26 @@ static class Program
         }
 
         // Load settings if they exist
-        ProcessingOptions options;
+        Settings settings;
         if (File.Exists("settings.json"))
         {
             try
             {
                 string json = File.ReadAllText("settings.json");
-                options = JsonSerializer.Deserialize<ProcessingOptions>(json)
-                    ?? new ProcessingOptions();
+                settings = JsonSerializer.Deserialize<Settings>(json) ?? new Settings();
             }
             catch (Exception)
             {
-                options = new ProcessingOptions();
+                settings = new Settings();
             }
         }
         else
         {
-            options = new ProcessingOptions();
+            settings = new Settings();
         }
+
+        // Create ProcessingOptions from Settings
+        var options = new ProcessingOptions(settings);
 
         services.AddLogging(builder =>
         {
@@ -81,7 +83,8 @@ static class Program
             builder.AddDebug();
         });
 
-        services.AddSingleton(options);
+        services.AddSingleton(settings);  // Add Settings to DI
+        services.AddSingleton(options);   // Add ProcessingOptions to DI
         services.AddSingleton<ImageProcessingService>();
         services.AddTransient<MainForm>();
 

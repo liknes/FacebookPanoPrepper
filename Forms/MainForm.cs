@@ -4,14 +4,17 @@ using FacebookPanoPrepper.Models;
 using FacebookPanoPrepper.Helpers;
 using FacebookPanoPrepper.Controls;
 using System.Diagnostics;
+using System.Text.Json;
 
 namespace FacebookPanoPrepper.Forms
 {
     public class MainForm : Form
     {
         private readonly ImageProcessingService _processingService;
+        private readonly Settings _settings;
         private readonly ILogger<MainForm> _logger;
-        private readonly ProcessingOptions _options;
+        private ProcessingOptions _options;
+        private LocalWebServer _webServer;
 
         // Form controls
         private TableLayoutPanel tableLayoutPanel;
@@ -22,18 +25,19 @@ namespace FacebookPanoPrepper.Forms
         private MenuStrip _menuStrip;
         private StatusStrip _statusStrip;
         private ToolStripStatusLabel _statusLabel;
-        private DarkProgressBar _statusProgress;
+        private ToolStripProgressBar _statusProgress;
         private CancellationTokenSource? _cancellationTokenSource;
         private ToolStripMenuItem _viewMenu;
         private ToolStripMenuItem _darkModeItem;
 
-        public MainForm(ImageProcessingService processingService, ILogger<MainForm> logger, ProcessingOptions options)
+        public MainForm(ImageProcessingService processingService, ILogger<MainForm> logger, ProcessingOptions options, Settings settings)
         {
             try
             {
                 _processingService = processingService;
                 _logger = logger;
                 _options = options;
+                _settings = settings;
 
                 // Initialize the form
                 InitializeFormControls();
@@ -47,6 +51,7 @@ namespace FacebookPanoPrepper.Forms
                     MessageBoxIcon.Error);
                 throw;
             }
+            _settings = settings;
         }
 
         private void InitializeFormControls()
@@ -57,6 +62,9 @@ namespace FacebookPanoPrepper.Forms
                 this.Text = $"Facebook Pano Prepper {AppVersion.FullVersion}";
                 this.Size = new Size(800, 600);
                 this.MinimumSize = new Size(600, 400);
+
+                // Initialize Menu Strip first
+                InitializeMenuStrip();
 
                 // Create and position controls
                 tableLayoutPanel = new TableLayoutPanel
@@ -109,9 +117,6 @@ namespace FacebookPanoPrepper.Forms
 
                 this.Controls.Add(tableLayoutPanel);
 
-                // Initialize Menu Strip
-                InitializeMenuStrip();
-
                 // Initialize Status Strip
                 InitializeStatusStrip();
 
@@ -135,49 +140,107 @@ namespace FacebookPanoPrepper.Forms
             }
         }
 
-        private void InitializeMenuStrip()
+        private void SettingsMenuItem_Click(object sender, EventArgs e)
         {
-            _menuStrip = new MenuStrip();
-
-            // File Menu
-            var fileMenu = new ToolStripMenuItem("File");
-            fileMenu.DropDownOpening += MenuStrip_ItemClicked;
-            var settingsItem = new ToolStripMenuItem("Settings...");
-            settingsItem.Click += SettingsItem_Click;
-            var exitItem = new ToolStripMenuItem("Exit");
-            exitItem.Click += (s, e) => this.Close();
-
-            fileMenu.DropDownItems.Add(settingsItem);
-            fileMenu.DropDownItems.Add(new ToolStripSeparator());
-            fileMenu.DropDownItems.Add(exitItem);
-
-            // View Menu
-            _viewMenu = new ToolStripMenuItem("View");
-            _viewMenu.DropDownOpening += MenuStrip_ItemClicked;
-            _darkModeItem = new ToolStripMenuItem("Dark Mode")
+            using (var settingsForm = new SettingsForm(_options, _settings))
             {
-                CheckOnClick = true,
-                BackColor = ThemeManager.GetCurrentScheme().Background,
-                ForeColor = ThemeManager.GetCurrentScheme().Text
-            };
-            _darkModeItem.Click += DarkModeItem_Click;
-            _viewMenu.DropDownItems.Add(_darkModeItem);
+                if (settingsForm.ShowDialog() == DialogResult.OK)
+                {
+                    SaveSettings();
+                }
+            }
+        }
 
-            // Help Menu
-            var helpMenu = new ToolStripMenuItem("Help");
-            helpMenu.DropDownOpening += MenuStrip_ItemClicked;
-            var aboutItem = new ToolStripMenuItem("About");
-            aboutItem.Click += (s, e) => ShowAboutDialog();
-            helpMenu.DropDownItems.Add(aboutItem);
+        //private void SaveSettings()
+        //{
+        //    var json = JsonSerializer.Serialize(_settings);
+        //    File.WriteAllText("settings.json", json);
+        //}
 
-            _menuStrip.Items.Add(fileMenu);
-            _menuStrip.Items.Add(_viewMenu);
-            _menuStrip.Items.Add(helpMenu);
+        //private void InitializeMenuStrip()
+        //{
+        //    _menuStrip = new MenuStrip();
 
-            _menuStrip.BackColor = ThemeManager.GetCurrentScheme().Background;
-            _menuStrip.ForeColor = ThemeManager.GetCurrentScheme().Text;
+        //    // File Menu
+        //    var fileMenu = new ToolStripMenuItem("File");
+        //    fileMenu.DropDownOpening += MenuStrip_ItemClicked;
+        //    var settingsItem = new ToolStripMenuItem("Settings...");
+        //    settingsItem.Click += SettingsItem_Click;
+        //    var exitItem = new ToolStripMenuItem("Exit");
+        //    exitItem.Click += (s, e) => this.Close();
 
-            this.Controls.Add(_menuStrip);
+        //    fileMenu.DropDownItems.Add(settingsItem);
+        //    fileMenu.DropDownItems.Add(new ToolStripSeparator());
+        //    fileMenu.DropDownItems.Add(exitItem);
+
+        //    // View Menu
+        //    _viewMenu = new ToolStripMenuItem("View");
+        //    _viewMenu.DropDownOpening += MenuStrip_ItemClicked;
+        //    _darkModeItem = new ToolStripMenuItem("Dark Mode")
+        //    {
+        //        CheckOnClick = true,
+        //        BackColor = ThemeManager.GetCurrentScheme().Background,
+        //        ForeColor = ThemeManager.GetCurrentScheme().Text
+        //    };
+        //    _darkModeItem.Click += DarkModeItem_Click;
+        //    _viewMenu.DropDownItems.Add(_darkModeItem);
+
+        //    // Help Menu
+        //    var helpMenu = new ToolStripMenuItem("Help");
+        //    helpMenu.DropDownOpening += MenuStrip_ItemClicked;
+        //    var aboutItem = new ToolStripMenuItem("About");
+        //    aboutItem.Click += (s, e) => ShowAboutDialog();
+        //    helpMenu.DropDownItems.Add(aboutItem);
+
+        //    _menuStrip.Items.Add(fileMenu);
+        //    _menuStrip.Items.Add(_viewMenu);
+        //    _menuStrip.Items.Add(helpMenu);
+
+        //    _menuStrip.BackColor = ThemeManager.GetCurrentScheme().Background;
+        //    _menuStrip.ForeColor = ThemeManager.GetCurrentScheme().Text;
+
+        //    this.Controls.Add(_menuStrip);
+        //}
+
+        private void InitializeStatusStrip()
+        {
+            try
+            {
+                _statusStrip = new StatusStrip
+                {
+                    SizingGrip = false,
+                    BackColor = ThemeManager.GetCurrentScheme().StatusStripBackground
+                };
+
+                _statusLabel = new ToolStripStatusLabel
+                {
+                    Spring = true,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Text = "Ready"
+                };
+
+                _statusProgress = new ToolStripProgressBar  // Changed from DarkProgressBar
+                {
+                    Width = 100,
+                    Visible = false
+                };
+
+                _statusStrip.Items.AddRange(new ToolStripItem[]
+                {
+            _statusLabel,
+            _statusProgress
+                });
+
+                this.Controls.Add(_statusStrip);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error in InitializeStatusStrip: {ex.Message}\nStack trace: {ex.StackTrace}",
+                    "Status Strip Initialization Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                throw;
+            }
         }
 
         private void MenuStrip_ItemClicked(object sender, EventArgs e)
@@ -189,51 +252,85 @@ namespace FacebookPanoPrepper.Forms
             }
         }
 
-        private void InitializeStatusStrip()
+        private void InitializeMenuStrip()
         {
-            _statusStrip = new StatusStrip
+            try
             {
-                BackColor = ThemeManager.GetCurrentScheme().StatusStripBackground,
-                Padding = new Padding(1, 0, 16, 0)
-            };
+                var menuStrip = new MenuStrip();
 
-            _statusLabel = new ToolStripStatusLabel("Ready");
+                // File Menu
+                var fileMenu = new ToolStripMenuItem("File");
+                var settingsItem = new ToolStripMenuItem("Settings...");
+                var exitItem = new ToolStripMenuItem("Exit");
 
-            var darkProgressBar = new DarkProgressBar
+                settingsItem.Click += (s, e) =>
+                {
+                    using (var settingsForm = new SettingsForm(_options, _settings))
+                    {
+                        if (settingsForm.ShowDialog() == DialogResult.OK)
+                        {
+                            SaveSettings();
+                        }
+                    }
+                };
+
+                exitItem.Click += (s, e) => Close();
+
+                fileMenu.DropDownItems.AddRange(new ToolStripItem[]
+                {
+            settingsItem,
+            new ToolStripSeparator(),
+            exitItem
+                });
+
+                // Help Menu
+                var helpMenu = new ToolStripMenuItem("Help");
+                var aboutItem = new ToolStripMenuItem("About...");
+                aboutItem.Click += (s, e) => ShowAboutDialog();
+
+                helpMenu.DropDownItems.Add(aboutItem);
+
+                // Add menus to strip
+                menuStrip.Items.AddRange(new ToolStripItem[] { fileMenu, helpMenu });
+
+                // Add menu strip to form
+                this.Controls.Add(menuStrip);
+                this.MainMenuStrip = menuStrip;
+            }
+            catch (Exception ex)
             {
-                Width = 100,
-                Height = 16,
-                Style = ProgressBarStyle.Continuous,
-                BackColor = ThemeManager.GetCurrentScheme().ScrollBarBackground,
-                ForeColor = ThemeManager.GetCurrentScheme().StatusProgressBar
-            };
+                MessageBox.Show($"Error in InitializeMenuStrip: {ex.Message}\nStack trace: {ex.StackTrace}",
+                    "Menu Initialization Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                throw;
+            }
+        }
 
-            var progressPanel = new ToolStripControlHost(darkProgressBar)
+        private void SaveSettings()
+        {
+            try
             {
-                AutoSize = false,
-                Width = 100,
-                Margin = new Padding(1, 3, 1, 3)
-            };
-
-            _statusProgress = darkProgressBar;
-
-            _statusStrip.Items.Add(_statusLabel);
-            _statusStrip.Items.Add(progressPanel);
-
-            this.Controls.Add(_statusStrip);
+                var json = JsonSerializer.Serialize(_settings);
+                File.WriteAllText("settings.json", json);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving settings");
+                MessageBox.Show("Error saving settings: " + ex.Message, "Settings Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void ShowAboutDialog()
         {
             MessageBox.Show(
-                $"Facebook Pano Prepper {AppVersion.FullVersion}\n" +
-                $"Built: {AppVersion.BuildDate:d}\n\n" +
+                $"Facebook Pano Prepper {AppVersion.FullVersion}\n\n" +
                 "Created by Ingve Moss Liknes\n" +
-                "MIT License",
+                "© 2024 All rights reserved.",
                 "About Facebook Pano Prepper",
                 MessageBoxButtons.OK,
-                MessageBoxIcon.Information
-            );
+                MessageBoxIcon.Information);
         }
 
         private void DarkModeItem_Click(object sender, EventArgs e)
@@ -251,14 +348,62 @@ namespace FacebookPanoPrepper.Forms
             this.Refresh();
         }
 
-        private void SettingsItem_Click(object sender, EventArgs e)
+        private void settingsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            using var settingsForm = new SettingsForm(_options);
-            if (settingsForm.ShowDialog(this) == DialogResult.OK)
+            using (var settingsForm = new SettingsForm(_options, _settings))
             {
-                _statusLabel.Text = "Settings updated";
+                if (settingsForm.ShowDialog() == DialogResult.OK)
+                {
+                    _options = new ProcessingOptions(_settings);
+                    SaveSettings();
+                }
             }
         }
+
+        //private void SaveSettings()
+        //{
+        //    var settings = new Settings
+        //    {
+        //        OutputFolder = _options.OutputFolder,
+        //        EnableMultiResolution = _options.EnableMultiResolution,
+        //        UseLocalWebServer = _options.UseLocalWebServer,
+        //        WebServerPort = _options.WebServerPort
+        //    };
+
+        //    var json = JsonSerializer.Serialize(settings);
+        //    File.WriteAllText("settings.json", json);
+        //}
+
+        private void LoadSettings()
+        {
+            if (File.Exists("settings.json"))
+            {
+                try
+                {
+                    var json = File.ReadAllText("settings.json");
+                    var settings = JsonSerializer.Deserialize<Settings>(json);
+                    _options = new ProcessingOptions(settings);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error loading settings");
+                    _options = new ProcessingOptions(new Settings());
+                }
+            }
+            else
+            {
+                _options = new ProcessingOptions(new Settings());
+            }
+        }
+
+        //private void SettingsItem_Click(object sender, EventArgs e)
+        //{
+        //    using var settingsForm = new SettingsForm(_options);
+        //    if (settingsForm.ShowDialog(this) == DialogResult.OK)
+        //    {
+        //        _statusLabel.Text = "Settings updated";
+        //    }
+        //}
 
         private void SetupDragDrop()
         {
@@ -312,6 +457,28 @@ namespace FacebookPanoPrepper.Forms
                 Directory.CreateDirectory(imagesDir);
                 Directory.CreateDirectory(resolutionsDir);
 
+                // Initialize web server if enabled
+                if (_options.EnableMultiResolution && _options.UseLocalWebServer)
+                {
+                    try
+                    {
+                        _webServer?.Dispose();
+                        _webServer = new LocalWebServer(batchDir, _options.WebServerPort);
+                        await _webServer.StartAsync();
+                        AppendColoredText("Local web server started successfully.\n");
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(
+                            "Failed to start web server. Falling back to standard mode.\n\n" +
+                            "Error: " + ex.Message,
+                            "Web Server Error",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        _options.UseLocalWebServer = false;
+                    }
+                }
+
                 _cancellationTokenSource = new CancellationTokenSource();
 
                 for (int i = 0; i < files.Length; i++)
@@ -334,19 +501,56 @@ namespace FacebookPanoPrepper.Forms
 
                     var report = await _processingService.ProcessImageAsync(file, outputPath, progress);
                     batchReport.Reports.Add(report);
+
                     if (report.Success)
                     {
                         batchReport.SuccessfulFiles++;
 
-                        var resolutions = await _processingService.CreateProgressiveResolutions(
-                            outputPath,
-                            resolutionsDir);
-
-                        processedFiles.Add((outputPath, resolutions));
-
-                        if (resolutions.MediumResPath != null)
+                        if (_options.EnableMultiResolution)
                         {
-                            AppendColoredText($"\nCreated progressive resolutions for {Path.GetFileName(file)} ({resolutions.Width}x{resolutions.Height})\n");
+                            if (_options.UseLocalWebServer)
+                            {
+                                // Create multi-resolution tiles for web server
+                                var multiRes = await _processingService.CreateMultiResolutionTiles(
+                                    outputPath,
+                                    Path.Combine(resolutionsDir, Path.GetFileNameWithoutExtension(outputPath) + "_tiles"));
+
+                                processedFiles.Add((outputPath, new PanoramaResolutions
+                                {
+                                    FullResPath = outputPath,
+                                    Width = multiRes?.Width ?? 0,
+                                    Height = multiRes?.Height ?? 0
+                                }));
+
+                                if (multiRes != null)
+                                {
+                                    AppendColoredText($"\nCreated multi-resolution tiles for {Path.GetFileName(file)} ({multiRes.Width}x{multiRes.Height})\n");
+                                }
+                            }
+                            else
+                            {
+                                // Create progressive resolutions for base64 encoding
+                                var resolutions = await _processingService.CreateProgressiveResolutions(
+                                    outputPath,
+                                    resolutionsDir);
+
+                                processedFiles.Add((outputPath, resolutions));
+
+                                if (resolutions.MediumResPath != null)
+                                {
+                                    AppendColoredText($"\nCreated progressive resolutions for {Path.GetFileName(file)} ({resolutions.Width}x{resolutions.Height})\n");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // Standard mode - just use the original processed file
+                            processedFiles.Add((outputPath, new PanoramaResolutions
+                            {
+                                FullResPath = outputPath,
+                                Width = Image.FromFile(outputPath).Width,
+                                Height = Image.FromFile(outputPath).Height
+                            }));
                         }
                     }
 
@@ -358,6 +562,7 @@ namespace FacebookPanoPrepper.Forms
                 if (processedFiles.Any())
                 {
                     var viewerPath = Path.Combine(batchDir, "viewer.html");
+                    //var htmlService = new HtmlViewerService(_options.UseLocalWebServer ? _webServer?.BaseUrl : null);
                     var htmlService = new HtmlViewerService();
                     htmlService.CreateHtmlViewer(viewerPath, processedFiles);
 
@@ -365,8 +570,14 @@ namespace FacebookPanoPrepper.Forms
                     var reportPath = Path.Combine(batchDir, "processing_report.txt");
                     File.WriteAllText(reportPath, batchReport.GetSummary());
 
+                    var message = $"Files processed and saved to:\n{batchDir}\n\nWould you like to open the viewer?";
+                    if (_options.UseLocalWebServer)
+                    {
+                        message += "\n\nNote: The viewer will work as long as this application is running.";
+                    }
+
                     if (MessageBox.Show(
-                        $"Files processed and saved to:\n{batchDir}\n\nWould you like to open the viewer?",
+                        message,
                         "Processing Complete",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question) == DialogResult.Yes)

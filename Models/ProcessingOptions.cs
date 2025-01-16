@@ -1,12 +1,39 @@
-﻿namespace FacebookPanoPrepper.Models
+﻿public class ProcessingOptions
 {
-    public class ProcessingOptions
+    public string OutputFolder { get; set; }
+    public int JpegQuality { get; set; }
+    public bool AutoResize { get; set; }
+    public bool AutoCorrectAspectRatio { get; set; }
+    public int MaxWidth { get; set; }
+    public int MaxHeight { get; set; }
+    public bool EnableMultiResolution { get; set; }
+    public bool UseLocalWebServer { get; set; }
+    public int WebServerPort { get; set; }
+
+    public ProcessingOptions()
     {
-        public bool AutoResize { get; set; } = true;
-        public bool AutoCorrectAspectRatio { get; set; } = true;
-        public int MaxWidth { get; set; } = 30000;
-        public int MaxHeight { get; set; } = 15000;
-        public int JpegQuality { get; set; } = 95;
-        public string OutputFolder { get; set; } = "360_processed";
+        var defaultSettings = new Settings();
+        OutputFolder = defaultSettings.OutputFolder;
+        JpegQuality = defaultSettings.JpegQuality;
+        AutoResize = defaultSettings.AutoResize;
+        AutoCorrectAspectRatio = defaultSettings.AutoCorrectAspectRatio;
+        MaxWidth = defaultSettings.MaxWidth;
+        MaxHeight = defaultSettings.MaxHeight;
+        EnableMultiResolution = defaultSettings.EnableMultiResolution;
+        UseLocalWebServer = defaultSettings.UseLocalWebServer;
+        WebServerPort = defaultSettings.WebServerPort;
+    }
+
+    public ProcessingOptions(Settings settings)
+    {
+        OutputFolder = settings.OutputFolder;
+        JpegQuality = settings.JpegQuality;
+        AutoResize = settings.AutoResize;
+        AutoCorrectAspectRatio = settings.AutoCorrectAspectRatio;
+        MaxWidth = settings.MaxWidth;
+        MaxHeight = settings.MaxHeight;
+        EnableMultiResolution = settings.EnableMultiResolution;
+        UseLocalWebServer = settings.UseLocalWebServer;
+        WebServerPort = settings.WebServerPort;
     }
 }

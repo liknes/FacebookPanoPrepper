@@ -1,10 +1,12 @@
 ﻿using FacebookPanoPrepper.Models;
+using System.Runtime;
 
 namespace FacebookPanoPrepper.Forms
 {
     public class SettingsForm : Form
     {
         private readonly ProcessingOptions _options;
+        private readonly Settings _settings;
         private TableLayoutPanel _mainLayout;
         private NumericUpDown _qualityInput;
         private CheckBox _autoResizeCheck;
@@ -13,10 +15,14 @@ namespace FacebookPanoPrepper.Forms
         private Button _browseButton;
         private Button _saveButton;
         private Button _cancelButton;
+        private CheckBox _multiResCheckbox;
+        private CheckBox _webServerCheckbox;
+        private NumericUpDown _portInput;
 
-        public SettingsForm(ProcessingOptions options)
+        public SettingsForm(ProcessingOptions options, Settings settings)
         {
             _options = options;
+            _settings = settings;
             InitializeComponents();
             LoadSettings();
         }
@@ -24,7 +30,7 @@ namespace FacebookPanoPrepper.Forms
         private void InitializeComponents()
         {
             this.Text = "Settings";
-            this.Size = new Size(500, 300);
+            this.Size = new Size(500, 400); // Increased height to accommodate advanced features
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
@@ -44,7 +50,7 @@ namespace FacebookPanoPrepper.Forms
             {
                 Minimum = 1,
                 Maximum = 100,
-                Value = _options.JpegQuality
+                Value = _settings.JpegQuality
             };
             _mainLayout.Controls.Add(_qualityInput, 1, 0);
             _mainLayout.Controls.Add(new Label { Text = "%" }, 2, 0);
@@ -53,7 +59,7 @@ namespace FacebookPanoPrepper.Forms
             _autoResizeCheck = new CheckBox
             {
                 Text = "Auto-resize large images",
-                Checked = _options.AutoResize
+                Checked = _settings.AutoResize
             };
             _mainLayout.Controls.Add(_autoResizeCheck, 0, 1);
 
@@ -61,7 +67,7 @@ namespace FacebookPanoPrepper.Forms
             _aspectRatioCheck = new CheckBox
             {
                 Text = "Auto-correct aspect ratio",
-                Checked = _options.AutoCorrectAspectRatio
+                Checked = _settings.AutoCorrectAspectRatio
             };
             _mainLayout.Controls.Add(_aspectRatioCheck, 0, 2);
 
@@ -69,7 +75,7 @@ namespace FacebookPanoPrepper.Forms
             _mainLayout.Controls.Add(new Label { Text = "Output Folder:" }, 0, 3);
             _outputFolderPath = new TextBox
             {
-                Text = _options.OutputFolder,
+                Text = _settings.OutputFolder,
                 Width = 250
             };
             _mainLayout.Controls.Add(_outputFolderPath, 1, 3);
@@ -81,6 +87,86 @@ namespace FacebookPanoPrepper.Forms
             };
             _browseButton.Click += BrowseButton_Click;
             _mainLayout.Controls.Add(_browseButton, 2, 3);
+
+            // Add a GroupBox for advanced features
+            var advancedGroup = new GroupBox
+            {
+                Text = "Advanced Features",
+                Dock = DockStyle.Bottom,
+                Padding = new Padding(10),
+                Height = 140
+            };
+
+            _multiResCheckbox = new CheckBox
+            {
+                Text = "Enable Multi-Resolution Support (Better performance for large panoramas)",
+                Checked = _settings.EnableMultiResolution,
+                AutoSize = true,
+                Location = new Point(15, 25)
+            };
+
+            _webServerCheckbox = new CheckBox
+            {
+                Text = "Use Local Web Server (Requires app to stay running)",
+                Checked = _settings.UseLocalWebServer,
+                AutoSize = true,
+                Location = new Point(15, 50),
+                Enabled = _settings.EnableMultiResolution
+            };
+
+            var portLabel = new Label
+            {
+                Text = "Web Server Port:",
+                AutoSize = true,
+                Location = new Point(35, 75)
+            };
+
+            _portInput = new NumericUpDown
+            {
+                Minimum = 1024,
+                Maximum = 65535,
+                Value = _settings.WebServerPort,
+                Location = new Point(140, 73),
+                Width = 80,
+                Enabled = _settings.EnableMultiResolution && _settings.UseLocalWebServer
+            };
+
+            var warningLabel = new Label
+            {
+                Text = "Note: These features are experimental and may require additional permissions.",
+                ForeColor = Color.DarkRed,
+                AutoSize = true,
+                Location = new Point(15, 100)
+            };
+
+            // Wire up events
+            _multiResCheckbox.CheckedChanged += (s, e) =>
+            {
+                _settings.EnableMultiResolution = _multiResCheckbox.Checked;
+                _webServerCheckbox.Enabled = _multiResCheckbox.Checked;
+                _portInput.Enabled = _multiResCheckbox.Checked && _webServerCheckbox.Checked;
+            };
+
+            _webServerCheckbox.CheckedChanged += (s, e) =>
+            {
+                _settings.UseLocalWebServer = _webServerCheckbox.Checked;
+                _portInput.Enabled = _webServerCheckbox.Checked;
+            };
+
+            _portInput.ValueChanged += (s, e) =>
+            {
+                _settings.WebServerPort = (int)_portInput.Value;
+            };
+
+            // Add controls to advanced group
+            advancedGroup.Controls.AddRange(new Control[]
+            {
+                _multiResCheckbox,
+                _webServerCheckbox,
+                portLabel,
+                _portInput,
+                warningLabel
+            });
 
             // Buttons
             var buttonPanel = new FlowLayoutPanel
@@ -106,16 +192,44 @@ namespace FacebookPanoPrepper.Forms
             buttonPanel.Controls.Add(_cancelButton);
             buttonPanel.Controls.Add(_saveButton);
 
+            // Add all components to form
             this.Controls.Add(_mainLayout);
+            this.Controls.Add(advancedGroup);
             this.Controls.Add(buttonPanel);
         }
 
         private void LoadSettings()
         {
-            _qualityInput.Value = _options.JpegQuality;
-            _autoResizeCheck.Checked = _options.AutoResize;
-            _aspectRatioCheck.Checked = _options.AutoCorrectAspectRatio;
-            _outputFolderPath.Text = _options.OutputFolder;
+            _qualityInput.Value = _settings.JpegQuality;
+            _autoResizeCheck.Checked = _settings.AutoResize;
+            _aspectRatioCheck.Checked = _settings.AutoCorrectAspectRatio;
+            _outputFolderPath.Text = _settings.OutputFolder;
+            _multiResCheckbox.Checked = _settings.EnableMultiResolution;
+            _webServerCheckbox.Checked = _settings.UseLocalWebServer;
+            _portInput.Value = _settings.WebServerPort;
+        }
+
+        private void SaveButton_Click(object sender, EventArgs e)
+        {
+            // Save to settings object
+            _settings.JpegQuality = (int)_qualityInput.Value;
+            _settings.AutoResize = _autoResizeCheck.Checked;
+            _settings.AutoCorrectAspectRatio = _aspectRatioCheck.Checked;
+            _settings.OutputFolder = _outputFolderPath.Text;
+            _settings.EnableMultiResolution = _multiResCheckbox.Checked;
+            _settings.UseLocalWebServer = _webServerCheckbox.Checked;
+            _settings.WebServerPort = (int)_portInput.Value;
+
+            // Update options properties
+            _options.JpegQuality = _settings.JpegQuality;
+            _options.AutoResize = _settings.AutoResize;
+            _options.AutoCorrectAspectRatio = _settings.AutoCorrectAspectRatio;
+            _options.OutputFolder = _settings.OutputFolder;
+            _options.EnableMultiResolution = _settings.EnableMultiResolution;
+            _options.UseLocalWebServer = _settings.UseLocalWebServer;
+            _options.WebServerPort = _settings.WebServerPort;
+
+            this.DialogResult = DialogResult.OK;
         }
 
         private void BrowseButton_Click(object sender, EventArgs e)
@@ -125,32 +239,6 @@ namespace FacebookPanoPrepper.Forms
             {
                 _outputFolderPath.Text = dialog.SelectedPath;
             }
-        }
-
-        private void SaveButton_Click(object sender, EventArgs e)
-        {
-            _options.JpegQuality = (int)_qualityInput.Value;
-            _options.AutoResize = _autoResizeCheck.Checked;
-            _options.AutoCorrectAspectRatio = _aspectRatioCheck.Checked;
-            _options.OutputFolder = _outputFolderPath.Text;
-
-            SaveSettingsToFile();
-            this.DialogResult = DialogResult.OK;
-        }
-
-        private void SaveSettingsToFile()
-        {
-            var settings = new
-            {
-                JpegQuality = _options.JpegQuality,
-                AutoResize = _options.AutoResize,
-                AutoCorrectAspectRatio = _options.AutoCorrectAspectRatio,
-                OutputFolder = _options.OutputFolder
-            };
-
-            string json = System.Text.Json.JsonSerializer.Serialize(settings,
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText("settings.json", json);
         }
     }
 }
