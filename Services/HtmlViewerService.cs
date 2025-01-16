@@ -1,11 +1,18 @@
-﻿using FacebookPanoPrepper.Models;
-using System.Text;
+﻿using System.Text;
+using FacebookPanoPrepper.Models;
 
 namespace FacebookPanoPrepper.Services
 {
     public class HtmlViewerService
     {
-        public void CreateHtmlViewer(string outputPath, List<(string FilePath, MultiResImage MultiRes)> panoramaFiles)
+        private string CreateBase64DataUrl(string imagePath)
+        {
+            var imageBytes = File.ReadAllBytes(imagePath);
+            var base64Image = Convert.ToBase64String(imageBytes);
+            return $"data:image/jpeg;base64,{base64Image}";
+        }
+
+        public void CreateHtmlViewer(string outputPath, List<(string FilePath, PanoramaResolutions Resolutions)> panoramaFiles)
         {
             var sb = new StringBuilder();
 
@@ -49,6 +56,11 @@ namespace FacebookPanoPrepper.Services
             font-size: 0.9em;
             margin-top: 5px;
         }
+        .loading-indicator {
+            color: #666;
+            font-size: 0.8em;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -58,70 +70,72 @@ namespace FacebookPanoPrepper.Services
             // Add each panorama
             for (int i = 0; i < panoramaFiles.Count; i++)
             {
-                var (filePath, multiRes) = panoramaFiles[i];
+                var (filePath, resolutions) = panoramaFiles[i];
                 var fileName = Path.GetFileName(filePath);
+
+                // Create data URLs for each resolution
+                var lowResData = resolutions.LowResPath != null ? CreateBase64DataUrl(resolutions.LowResPath) : null;
+                var mediumResData = resolutions.MediumResPath != null ? CreateBase64DataUrl(resolutions.MediumResPath) : null;
+                var fullResData = CreateBase64DataUrl(resolutions.FullResPath);
 
                 sb.AppendLine($@"
     <div class='pano-container'>
-        <h2 class='pano-title'>{fileName}</h2>");
-
-                // Add image info if it's a multi-resolution image
-                if (multiRes != null)
-                {
-                    sb.AppendLine($@"
-        <p class='image-info'>Original size: {multiRes.Width}x{multiRes.Height} pixels (Multi-resolution enabled)</p>");
-                }
-
-                sb.AppendLine($@"
+        <h2 class='pano-title'>{fileName}</h2>
+        <p class='image-info'>Original size: {resolutions.Width}x{resolutions.Height} pixels</p>
         <div id='panorama{i}' class='panorama'></div>
-        <script>");
+        <div id='loading{i}' class='loading-indicator'></div>
+        <script>
+            (function() {{
+                var currentViewer = null;
+                
+                function createViewer(imageUrl) {{
+                    if (currentViewer) {{
+                        currentViewer.destroy();
+                    }}
+                    
+                    currentViewer = pannellum.viewer('panorama{i}', {{
+                        type: 'equirectangular',
+                        panorama: imageUrl,
+                        autoLoad: true,
+                        autoRotate: -2,
+                        compass: true,
+                        showFullscreenCtrl: true,
+                        mouseZoom: true,
+                        hfov: 100,
+                        multiResMinHfov: 50
+                    }});
+                }}
 
-                if (multiRes != null)
-                {
-                    // Multi-resolution configuration
-                    var relativePath = Path.GetRelativePath(
-                        Path.GetDirectoryName(outputPath),
-                        multiRes.BasePath).Replace("\\", "/");
+                var loadingIndicator = document.getElementById('loading{i}');
+                var loaded = 'low';
+                loadingIndicator.textContent = 'Loading higher resolution...';
 
-                    sb.AppendLine($@"
-            pannellum.viewer('panorama{i}', {{
-                type: 'multires',
-                multiRes: {{
-                    basePath: '{relativePath}',
-                    path: '/%l_%x_%y.jpg',
-                    fallbackPath: '/fallback/%s.jpg',
-                    extension: 'jpg',
-                    tileResolution: {multiRes.TileSize},
-                    maxLevel: {multiRes.Levels - 1},
-                    cubeResolution: {multiRes.Width}
-                }},
-                autoLoad: true,
-                autoRotate: -2,
-                compass: true,
-                showFullscreenCtrl: true,
-                mouseZoom: true
-            }});");
-                }
-                else
-                {
-                    // Regular panorama configuration
-                    var imageBytes = File.ReadAllBytes(filePath);
-                    var base64Image = Convert.ToBase64String(imageBytes);
-                    var dataUrl = $"data:image/jpeg;base64,{base64Image}";
+                // Start with low/initial resolution
+                createViewer('{(lowResData ?? fullResData)}');
 
-                    sb.AppendLine($@"
-            pannellum.viewer('panorama{i}', {{
-                type: 'equirectangular',
-                panorama: '{dataUrl}',
-                autoLoad: true,
-                autoRotate: -2,
-                compass: true,
-                showFullscreenCtrl: true,
-                mouseZoom: true
-            }});");
-                }
+                {(mediumResData != null ? $@"
+                var mediumImg = new Image();
+                mediumImg.onload = function() {{
+                    if (loaded === 'low') {{
+                        createViewer('{mediumResData}');
+                        loaded = 'medium';
+                        loadingIndicator.textContent = 'Loading full resolution...';
+                    }}
+                }};
+                mediumImg.src = '{mediumResData}';" : "")}
 
-                sb.AppendLine(@"        </script>
+                var fullImg = new Image();
+                fullImg.onload = function() {{
+                    createViewer('{fullResData}');
+                    loaded = 'full';
+                    loadingIndicator.textContent = 'Full resolution loaded';
+                    setTimeout(function() {{ 
+                        loadingIndicator.style.display = 'none';
+                    }}, 2000);
+                }};
+                fullImg.src = '{fullResData}';
+            }})();
+        </script>
     </div>");
             }
 

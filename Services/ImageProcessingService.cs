@@ -222,8 +222,6 @@ public class ImageProcessingService
         );
     }
 
-
-
     public async Task<MultiResImage> CreateMultiResolutionTiles(string imagePath, string outputDirectory)
     {
         using var image = Image.FromFile(imagePath);
@@ -285,6 +283,53 @@ public class ImageProcessingService
             BasePath = tilesDir,
             Levels = levels,
             TileSize = tileSize,
+            Width = image.Width,
+            Height = image.Height
+        };
+    }
+
+    public async Task<PanoramaResolutions> CreateProgressiveResolutions(string imagePath, string outputDirectory)
+    {
+        using var image = Image.FromFile(imagePath);
+
+        // Only create additional resolutions if image is large
+        if (image.Width <= 2048)
+        {
+            return new PanoramaResolutions
+            {
+                FullResPath = imagePath,
+                Width = image.Width,
+                Height = image.Height
+            };
+        }
+
+        string baseName = Path.GetFileNameWithoutExtension(imagePath);
+
+        // Create medium resolution (2048px width)
+        string mediumPath = Path.Combine(outputDirectory, $"{baseName}_medium.jpg");
+        using (var medium = new Bitmap(2048, (int)(2048 * (float)image.Height / image.Width)))
+        using (var g = Graphics.FromImage(medium))
+        {
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.DrawImage(image, 0, 0, medium.Width, medium.Height);
+            medium.Save(mediumPath, ImageFormat.Jpeg);
+        }
+
+        // Create low resolution (1024px width)
+        string lowPath = Path.Combine(outputDirectory, $"{baseName}_low.jpg");
+        using (var low = new Bitmap(1024, (int)(1024 * (float)image.Height / image.Width)))
+        using (var g = Graphics.FromImage(low))
+        {
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.DrawImage(image, 0, 0, low.Width, low.Height);
+            low.Save(lowPath, ImageFormat.Jpeg);
+        }
+
+        return new PanoramaResolutions
+        {
+            FullResPath = imagePath,
+            MediumResPath = mediumPath,
+            LowResPath = lowPath,
             Width = image.Width,
             Height = image.Height
         };

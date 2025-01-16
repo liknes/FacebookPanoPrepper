@@ -286,7 +286,7 @@ namespace FacebookPanoPrepper.Forms
 
         private async Task ProcessFilesAsync(string[] files)
         {
-            var processedFiles = new List<(string FilePath, Models.MultiResImage MultiRes)>();
+            var processedFiles = new List<(string FilePath, PanoramaResolutions Resolutions)>();
             _statusProgress.Maximum = files.Length;
             _statusProgress.Value = 0;
             dropLabel.Text = "Processing...";
@@ -305,12 +305,12 @@ namespace FacebookPanoPrepper.Forms
                 string baseOutputDir = Path.GetFullPath(_options.OutputFolder);
                 string batchDir = Path.Combine(baseOutputDir, $"Batch_{timestamp}");
                 string imagesDir = Path.Combine(batchDir, "images");
-                string tilesDir = Path.Combine(batchDir, "tiles");
+                string resolutionsDir = Path.Combine(batchDir, "resolutions");
 
                 // Create directories
                 Directory.CreateDirectory(batchDir);
                 Directory.CreateDirectory(imagesDir);
-                Directory.CreateDirectory(tilesDir);
+                Directory.CreateDirectory(resolutionsDir);
 
                 _cancellationTokenSource = new CancellationTokenSource();
 
@@ -338,15 +338,15 @@ namespace FacebookPanoPrepper.Forms
                     {
                         batchReport.SuccessfulFiles++;
 
-                        var multiRes = await _processingService.CreateMultiResolutionTiles(
+                        var resolutions = await _processingService.CreateProgressiveResolutions(
                             outputPath,
-                            tilesDir);
+                            resolutionsDir);
 
-                        processedFiles.Add((outputPath, multiRes));
+                        processedFiles.Add((outputPath, resolutions));
 
-                        if (multiRes != null)
+                        if (resolutions.MediumResPath != null)
                         {
-                            AppendColoredText($"\nCreated multi-resolution tiles for {Path.GetFileName(file)} ({multiRes.Width}x{multiRes.Height})\n");
+                            AppendColoredText($"\nCreated progressive resolutions for {Path.GetFileName(file)} ({resolutions.Width}x{resolutions.Height})\n");
                         }
                     }
 
