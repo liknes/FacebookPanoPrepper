@@ -5,6 +5,58 @@ namespace FacebookPanoPrepper.Services
 {
     public class HtmlViewerService
     {
+        private string GetBatchFolders(string outputPath)
+        {
+            var rootDir = Path.GetDirectoryName(Path.GetDirectoryName(outputPath)); // Get parent of batch folder
+            var batchDirs = Directory.GetDirectories(rootDir)
+                                    .OrderByDescending(d => d) // Most recent first
+                                    .Select(d => new
+                                    {
+                                        Path = d,
+                                        Name = Path.GetFileName(d),
+                                        Current = d == Path.GetDirectoryName(outputPath),
+                                        Info = GetBatchInfo(d)
+                                    });
+
+            var sb = new StringBuilder();
+            foreach (var dir in batchDirs)
+            {
+                var activeClass = dir.Current ? "active" : "";
+                sb.AppendLine($@"<a href=""javascript:loadBatch('{dir.Name}')"" class=""batch-link {activeClass}"">
+                             <div class=""batch-date"">{dir.Info}</div>
+                           </a>");
+            }
+            return sb.ToString();
+        }
+
+        private string GetBatchInfo(string batchPath)
+        {
+            try
+            {
+                var panoramaCount = Directory.GetFiles(batchPath, "360_*.jpg").Length;
+                var dateStr = Path.GetFileName(batchPath);
+
+                // Check if the folder name matches our expected format
+                if (dateStr.Length >= 10 && dateStr.Contains('_'))
+                {
+                    var datePart = dateStr.Split('_')[0];
+                    if (DateTime.TryParseExact(datePart, "yyyy-MM-dd", null,
+                        System.Globalization.DateTimeStyles.None, out DateTime date))
+                    {
+                        return $"{date:MMM dd, yyyy} ({panoramaCount} images)";
+                    }
+                }
+
+                // If date parsing fails, just return the folder name and image count
+                return $"{dateStr} ({panoramaCount} images)";
+            }
+            catch (Exception)
+            {
+                // If anything goes wrong, return a simple fallback
+                return Path.GetFileName(batchPath);
+            }
+        }
+
         private async Task<string> CreateBase64DataUrlAsync(string imagePath, IProgress<string> progress = null)
         {
             progress?.Report($"Reading {Path.GetFileName(imagePath)}...");
@@ -35,7 +87,7 @@ namespace FacebookPanoPrepper.Services
         {
             var sb = new StringBuilder();
 
-            // Start HTML
+            // Start HTML with sidebar
             sb.AppendLine(@"<!DOCTYPE html>
 <html>
 <head>
@@ -45,10 +97,53 @@ namespace FacebookPanoPrepper.Services
     <style>
         body { 
             font-family: Arial, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+            margin: 0;
+            padding: 0;
+            display: flex;
             background: #f5f5f5;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 250px;
+            background: #2c3e50;
+            height: 100vh;
+            padding: 20px 0;
+            overflow-y: auto;
+            position: fixed;
+            transition: margin-left 0.3s ease;
+        }
+        .sidebar h2 {
+            color: white;
+            padding: 0 20px;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        .batch-link {
+            display: block;
+            padding: 15px 20px;
+            color: #ecf0f1;
+            text-decoration: none;
+            transition: background 0.3s;
+            border-bottom: 1px solid #34495e;
+        }
+        .batch-link:hover {
+            background: #34495e;
+        }
+        .batch-link.active {
+            background: #3498db;
+        }
+        .batch-date {
+            font-size: 14px;
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+            flex: 1;
+            max-width: 1200px;
+            transition: margin-left 0.3s ease;
+        }
+        .main-content.full-width {
+            margin-left: 0;
         }
         .pano-container {
             background: white;
@@ -80,11 +175,47 @@ namespace FacebookPanoPrepper.Services
             font-size: 0.8em;
             margin-top: 5px;
         }
+        .loading-indicator::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80% { content: '...'; }
+        }
+        .toggle-btn {
+            position: fixed;
+            left: 250px;
+            top: 10px;
+            z-index: 100;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 0 4px 4px 0;
+            transition: left 0.3s ease;
+        }
+        .toggle-btn.collapsed {
+            left: 0;
+        }
+        .sidebar-collapsed {
+            margin-left: -250px;
+        }
     </style>
 </head>
 <body>
-    <h1>360° Panorama Gallery</h1>
-    <p class='note'>Note: Internet connection required for the 360° viewer to work.</p>");
+    <button id=""toggleSidebar"" class=""toggle-btn"">≡</button>
+    <div class=""sidebar"" id=""sidebar"">
+        <h2>Batch Folders</h2>
+        " + GetBatchFolders(outputPath) + @"
+    </div>
+    <div class=""main-content"" id=""mainContent"">
+        <div id=""contentArea"">
+            <h1>360° Panorama Gallery</h1>
+            <p class='note'>Note: Internet connection required for the 360° viewer to work.</p>");
 
             // Add each panorama
             for (int i = 0; i < panoramaFiles.Count; i++)
@@ -105,42 +236,39 @@ namespace FacebookPanoPrepper.Services
 
                 var fullResData = await CreateBase64DataUrlAsync(resolutions.FullResPath, progress);
 
+                // Add panorama container
                 sb.AppendLine($@"
     <div class='pano-container'>
         <h2 class='pano-title'>{fileName}</h2>
-        <p class='image-info'>Original size: {resolutions.Width}x{resolutions.Height} pixels</p>
         <div id='panorama{i}' class='panorama'></div>
-        <div id='loading{i}' class='loading-indicator'></div>
-        <script>
-            (function() {{
-                var currentViewer = null;
-                
-                function createViewer(imageUrl) {{
-                    if (currentViewer) {{
-                        currentViewer.destroy();
+        <div class='loading-indicator' id='loadingIndicator{i}'>Loading...</div>
+        <div class='image-info'>Size: {resolutions.Width}x{resolutions.Height}</div>
+    </div>
+    <script>
+        (function() {{
+            var loaded = 'none';
+            var loadingIndicator = document.getElementById('loadingIndicator{i}');
+
+            function createViewer(imageUrl) {{
+                pannellum.viewer('panorama{i}', {{
+                    type: 'equirectangular',
+                    panorama: imageUrl,
+                    autoLoad: true
+                }});
+            }}
+
+            {(lowResData != null ? $@"
+                var lowImg = new Image();
+                lowImg.onload = function() {{
+                    if (loaded === 'none') {{
+                        createViewer('{lowResData}');
+                        loaded = 'low';
+                        loadingIndicator.textContent = 'Loading medium resolution...';
                     }}
-                    
-                    currentViewer = pannellum.viewer('panorama{i}', {{
-                        type: 'equirectangular',
-                        panorama: imageUrl,
-                        autoLoad: true,
-                        autoRotate: -2,
-                        compass: true,
-                        showFullscreenCtrl: true,
-                        mouseZoom: true,
-                        hfov: 100,
-                        multiResMinHfov: 50
-                    }});
-                }}
+                }};
+                lowImg.src = '{lowResData}';" : "")}
 
-                var loadingIndicator = document.getElementById('loading{i}');
-                var loaded = 'low';
-                loadingIndicator.textContent = 'Loading higher resolution...';
-
-                // Start with low/initial resolution
-                createViewer('{(lowResData ?? fullResData)}');
-
-                {(mediumResData != null ? $@"
+            {(mediumResData != null ? $@"
                 var mediumImg = new Image();
                 mediumImg.onload = function() {{
                     if (loaded === 'low') {{
@@ -161,20 +289,64 @@ namespace FacebookPanoPrepper.Services
                     }}, 2000);
                 }};
                 fullImg.src = '{fullResData}';
-            }})();
-        </script>
-    </div>");
+        }})();
+    </script>");
             }
 
-            // Close HTML
+            // Close HTML and add JavaScript (after the loop)
             sb.AppendLine(@"
+        </div>
+    </div>
+    <script>
+        // Toggle sidebar
+        document.getElementById('toggleSidebar').onclick = function() {
+            document.querySelector('.sidebar').classList.toggle('sidebar-collapsed');
+            document.querySelector('.main-content').classList.toggle('full-width');
+            this.classList.toggle('collapsed');
+        };
+
+        // Load batch content
+        function loadBatch(batchName) {
+            const currentPath = window.location.pathname;
+            const rootPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+            const newPath = rootPath.substring(0, rootPath.lastIndexOf('/')) + '/' + batchName + '/viewer.html';
+            
+            // Update content area
+            fetch(newPath)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const content = doc.querySelector('#contentArea').innerHTML;
+                    document.querySelector('#contentArea').innerHTML = content;
+                    
+                    // Update active state in menu
+                    document.querySelectorAll('.batch-link').forEach(link => {
+                        link.classList.remove('active');
+                        if(link.getAttribute('href').includes(batchName)) {
+                            link.classList.add('active');
+                        }
+                    });
+
+                    // Update URL without page reload
+                    history.pushState({}, '', newPath);
+                })
+                .catch(error => console.error('Error loading batch:', error));
+        }
+
+        // Handle browser back/forward
+        window.onpopstate = function(event) {
+            const batchName = window.location.pathname.split('/').slice(-2)[0];
+            loadBatch(batchName);
+        };
+    </script>
 </body>
 </html>");
 
-            // Write the file asynchronously
+            // Write the file asynchronously (after everything is built)
             progress?.Report("Saving viewer file...");
             await File.WriteAllTextAsync(outputPath, sb.ToString());
             progress?.Report("Viewer created successfully!");
         }
+        }
     }
-}
