@@ -22,6 +22,9 @@ A Windows desktop application that helps prepare panoramic images for optimal di
 - .NET 8.0 or later
 - Sufficient disk space for image processing
 
+## Screenshot
+<img src="screenshots/panoprepper-dark.png" alt="Facebook Pano Prepper Main Window" width="800"/>
+
 ## Installation
 
 1. Download the latest release from the [releases page](https://github.com/liknes/FacebookPanoPrepper/releases/latest) page
