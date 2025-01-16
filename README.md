@@ -6,6 +6,10 @@ A Windows desktop application that helps prepare panoramic images for optimal di
 
 - **Drag & Drop Interface**: Simple drag-and-drop functionality for processing single or multiple panoramic images
 - **Batch Processing**: Process multiple panoramic images simultaneously
+- **Advanced Viewing Options**: 
+  - Multi-Resolution Support for large panoramas
+  - Built-in 360° viewer for processed images
+  - Optional local web server for optimal viewing experience
 - **Dark/Light Theme**: Built-in theme switching for comfortable viewing in any environment
 - **Real-time Progress**: Visual feedback with progress bars and detailed logging
 - **Detailed Reports**: Comprehensive processing reports showing:
@@ -14,7 +18,11 @@ A Windows desktop application that helps prepare panoramic images for optimal di
   - File size information
   - Aspect ratio details
   - Warning messages (if any)
-- **Settings Management**: Configurable output options and processing parameters
+- **Settings Management**: 
+  - Configurable output options
+  - Processing parameters
+  - Advanced features toggle
+  - Web server configuration
 
 ## Requirements
 
@@ -27,7 +35,7 @@ A Windows desktop application that helps prepare panoramic images for optimal di
 
 ## Installation
 
-1. Download the latest release from the [releases page](https://github.com/liknes/FacebookPanoPrepper/releases/latest) page
+1. Download the latest release from the [releases page](https://github.com/liknes/FacebookPanoPrepper/releases/latest)
 2. Extract the ZIP file to your preferred location
 3. Run `FacebookPanoPrepper.exe`
 
@@ -37,21 +45,30 @@ A Windows desktop application that helps prepare panoramic images for optimal di
    - Start FacebookPanoPrepper.exe
    - The main window will display a drop zone for your images
 
-2. **Process Images**
+2. **Configure Settings (Optional)**
+   - Access settings through File > Settings
+   - Configure basic options:
+     - Output folder location
+     - JPEG quality
+     - Auto-resize options
+   - Configure advanced features:
+     - Multi-Resolution support for large panoramas
+     - Local web server for optimal viewing
+     - Web server port settings
+
+3. **Process Images**
    - Drag and drop one or more panoramic images onto the application window
    - The application will automatically begin processing
    - Progress is shown in real-time
    - Results are displayed in the log window
 
-3. **Configure Settings**
-   - Access settings through File ? Settings
-   - Customize output folder location
-   - Adjust processing parameters as needed
-
 4. **View Results**
-   - Processed images are saved with "360_" prefix
-   - Check the log window for detailed processing information
-   - Status bar shows overall processing status
+   - Processed images are saved in timestamped batch folders
+   - Each batch includes:
+     - Processed panoramic images
+     - HTML viewer for interactive 360° viewing
+     - Processing report
+   - Optional multi-resolution tiles for better performance
 
 ## Features in Detail
 
@@ -60,6 +77,14 @@ A Windows desktop application that helps prepare panoramic images for optimal di
 - Preserves original image quality
 - Handles multiple image formats (JPG/JPEG)
 - Maintains aspect ratio requirements for Facebook
+- Creates multi-resolution versions for optimal viewing
+
+### Interactive Viewer
+- Built-in 360° panorama viewer
+- Progressive loading of different resolutions
+- Optional local web server for better performance
+- Full-screen support
+- Mouse and touch controls
 
 ### User Interface
 - Clean, modern Windows Forms interface
@@ -80,6 +105,7 @@ Built using:
 - C# (.NET 8.0)
 - Windows Forms
 - Microsoft.Extensions.Logging
+- Pannellum viewer for 360° images
 - Custom image processing services
 
 ## Contributing
@@ -92,9 +118,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+## Acknowledgments
+
+- [Pannellum](https://pannellum.org/): A lightweight, free, and open source panorama viewer for the web. Created by Matthew Petroff.
+  - Used for the interactive 360° panorama viewing functionality
+  - Licensed under the MIT License
+  - More information at [github.com/mpetroff/pannellum](https://github.com/mpetroff/pannellum)
+
 ## Support
 
 For issues, questions, or suggestions, please:
-1. Check the [Issues](link-to-issues) page
+1. Check the [Issues](https://github.com/liknes/FacebookPanoPrepper/issues) page
 2. Create a new issue if needed
 3. Provide detailed information about your problem
