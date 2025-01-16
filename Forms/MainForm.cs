@@ -3,6 +3,7 @@ using FacebookPanoPrepper.Services;
 using FacebookPanoPrepper.Models;
 using FacebookPanoPrepper.Helpers;
 using FacebookPanoPrepper.Controls;
+using System.Diagnostics;
 
 namespace FacebookPanoPrepper.Forms
 {
@@ -285,6 +286,7 @@ namespace FacebookPanoPrepper.Forms
 
         private async Task ProcessFilesAsync(string[] files)
         {
+            var processedFiles = new List<string>();
             _statusProgress.Maximum = files.Length;
             _statusProgress.Value = 0;
             dropLabel.Text = "Processing...";
@@ -298,11 +300,15 @@ namespace FacebookPanoPrepper.Forms
 
             try
             {
+                // Create a timestamped folder for this batch
+                string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HHmmss");
                 string baseOutputDir = Path.GetFullPath(_options.OutputFolder);
-                if (!Directory.Exists(baseOutputDir))
-                {
-                    Directory.CreateDirectory(baseOutputDir);
-                }
+                string batchDir = Path.Combine(baseOutputDir, $"Batch_{timestamp}");
+                string imagesDir = Path.Combine(batchDir, "images");
+
+                // Create directories
+                Directory.CreateDirectory(batchDir);
+                Directory.CreateDirectory(imagesDir);
 
                 _cancellationTokenSource = new CancellationTokenSource();
 
@@ -315,7 +321,7 @@ namespace FacebookPanoPrepper.Forms
                     _statusLabel.Text = $"Processing {i + 1} of {files.Length}: {Path.GetFileName(file)}";
 
                     var outputPath = Path.Combine(
-                        baseOutputDir,
+                        imagesDir,
                         "360_" + Path.GetFileName(file)
                     );
 
@@ -326,10 +332,39 @@ namespace FacebookPanoPrepper.Forms
 
                     var report = await _processingService.ProcessImageAsync(file, outputPath, progress);
                     batchReport.Reports.Add(report);
-                    if (report.Success) batchReport.SuccessfulFiles++;
+                    if (report.Success)
+                    {
+                        batchReport.SuccessfulFiles++;
+                        processedFiles.Add(outputPath);
+                    }
 
                     AppendColoredText(report.GetRichTextSummary());
                     _statusProgress.Value = i + 1;
+                }
+
+                // Create viewer in the batch directory
+                if (processedFiles.Any())
+                {
+                    var viewerPath = Path.Combine(batchDir, "viewer.html");
+                    var htmlService = new HtmlViewerService();
+                    htmlService.CreateHtmlViewer(viewerPath, processedFiles);
+
+                    // Save processing report
+                    var reportPath = Path.Combine(batchDir, "processing_report.txt");
+                    File.WriteAllText(reportPath, batchReport.GetSummary());
+
+                    if (MessageBox.Show(
+                        $"Files processed and saved to:\n{batchDir}\n\nWould you like to open the viewer?",
+                        "Processing Complete",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question) == DialogResult.Yes)
+                    {
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = viewerPath,
+                            UseShellExecute = true
+                        });
+                    }
                 }
             }
             catch (Exception ex)
