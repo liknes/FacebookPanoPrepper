@@ -283,6 +283,30 @@ namespace FacebookPanoPrepper.Forms
             exitItem
                 });
 
+                // View Menu
+                var viewMenu = new ToolStripMenuItem("View");
+                var darkModeItem = new ToolStripMenuItem("Dark Mode")
+                {
+                    CheckOnClick = true,
+                    Checked = ThemeManager.IsDarkMode
+                };
+
+                darkModeItem.Click += (s, e) =>
+                {
+                    ThemeManager.ApplyTheme(this, darkModeItem.Checked);
+                    var scheme = ThemeManager.GetCurrentScheme();
+                    logTextBox.BackColor = scheme.Background;
+                    _statusStrip.BackColor = scheme.StatusStripBackground;
+                    _statusProgress.BackColor = scheme.ScrollBarBackground;
+                    _statusProgress.ForeColor = scheme.StatusProgressBar;
+                    menuStrip.BackColor = scheme.Background;
+                    menuStrip.ForeColor = scheme.Text;
+                    UpdateLogTextColors();
+                    this.Refresh();
+                };
+
+                viewMenu.DropDownItems.Add(darkModeItem);
+
                 // Help Menu
                 var helpMenu = new ToolStripMenuItem("Help");
                 var aboutItem = new ToolStripMenuItem("About...");
@@ -291,7 +315,11 @@ namespace FacebookPanoPrepper.Forms
                 helpMenu.DropDownItems.Add(aboutItem);
 
                 // Add menus to strip
-                menuStrip.Items.AddRange(new ToolStripItem[] { fileMenu, helpMenu });
+                menuStrip.Items.AddRange(new ToolStripItem[] { fileMenu, viewMenu, helpMenu });
+
+                // Set initial theme colors
+                menuStrip.BackColor = ThemeManager.GetCurrentScheme().Background;
+                menuStrip.ForeColor = ThemeManager.GetCurrentScheme().Text;
 
                 // Add menu strip to form
                 this.Controls.Add(menuStrip);
