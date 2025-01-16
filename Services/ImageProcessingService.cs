@@ -222,6 +222,74 @@ public class ImageProcessingService
         );
     }
 
+
+
+    public async Task<MultiResImage> CreateMultiResolutionTiles(string imagePath, string outputDirectory)
+    {
+        using var image = Image.FromFile(imagePath);
+
+        // Only create tiles if image is large enough (e.g., > 4000 pixels)
+        if (image.Width <= 4000 || image.Height <= 2000)
+        {
+            return null;
+        }
+
+        // Calculate number of levels needed
+        int maxSize = Math.Max(image.Width, image.Height);
+        int levels = (int)Math.Ceiling(Math.Log(maxSize, 2)) - 8; // Start at 256px
+        int tileSize = 512; // Standard tile size
+
+        // Create directory structure
+        string baseName = Path.GetFileNameWithoutExtension(imagePath);
+        string tilesDir = Path.Combine(outputDirectory, $"{baseName}_tiles");
+        Directory.CreateDirectory(tilesDir);
+
+        // Create tiles for each level
+        for (int level = 0; level < levels; level++)
+        {
+            int scale = 1 << (levels - level - 1);
+            int levelWidth = image.Width / scale;
+            int levelHeight = image.Height / scale;
+
+            using var resized = new Bitmap(levelWidth, levelHeight);
+            using (var g = Graphics.FromImage(resized))
+            {
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.DrawImage(image, 0, 0, levelWidth, levelHeight);
+            }
+
+            for (int y = 0; y < levelHeight; y += tileSize)
+            {
+                for (int x = 0; x < levelWidth; x += tileSize)
+                {
+                    var tileWidth = Math.Min(tileSize, levelWidth - x);
+                    var tileHeight = Math.Min(tileSize, levelHeight - y);
+
+                    using var tile = new Bitmap(tileWidth, tileHeight);
+                    using (var g = Graphics.FromImage(tile))
+                    {
+                        g.DrawImage(resized,
+                            new Rectangle(0, 0, tileWidth, tileHeight),
+                            new Rectangle(x, y, tileWidth, tileHeight),
+                            GraphicsUnit.Pixel);
+                    }
+
+                    string tilePath = Path.Combine(tilesDir, $"{level}_{x}_{y}.jpg");
+                    await Task.Run(() => tile.Save(tilePath, ImageFormat.Jpeg));
+                }
+            }
+        }
+
+        return new MultiResImage
+        {
+            BasePath = tilesDir,
+            Levels = levels,
+            TileSize = tileSize,
+            Width = image.Width,
+            Height = image.Height
+        };
+    }
+
     private string CreateXmpMetadata(int width, int height) =>
         $@"<?xpacket begin=""﻿"" id=""W5M0MpCehiHzreSzNTczkc9d""?>
         <x:xmpmeta xmlns:x=""adobe:ns:meta/"" x:xmptk=""Adobe XMP Core 5.6-c140 79.160451, 2017/05/06-01:08:21        "">

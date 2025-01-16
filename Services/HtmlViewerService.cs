@@ -1,13 +1,16 @@
-﻿using System.Text;
+﻿using FacebookPanoPrepper.Models;
+using System.Text;
 
-public class HtmlViewerService
+namespace FacebookPanoPrepper.Services
 {
-    public void CreateHtmlViewer(string outputPath, List<string> panoramaFiles)
+    public class HtmlViewerService
     {
-        var sb = new StringBuilder();
+        public void CreateHtmlViewer(string outputPath, List<(string FilePath, MultiResImage MultiRes)> panoramaFiles)
+        {
+            var sb = new StringBuilder();
 
-        // Start HTML
-        sb.AppendLine(@"<!DOCTYPE html>
+            // Start HTML
+            sb.AppendLine(@"<!DOCTYPE html>
 <html>
 <head>
     <title>360° Panorama Viewer</title>
@@ -41,43 +44,94 @@ public class HtmlViewerService
             font-style: italic;
             margin-top: 20px;
         }
+        .image-info {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
     <h1>360° Panorama Gallery</h1>
     <p class='note'>Note: Internet connection required for the 360° viewer to work.</p>");
 
-        // Add each panorama
-        for (int i = 0; i < panoramaFiles.Count; i++)
-        {
-            var fileName = Path.GetFileName(panoramaFiles[i]);
-            // Convert image to base64
-            var imageBytes = File.ReadAllBytes(panoramaFiles[i]);
-            var base64Image = Convert.ToBase64String(imageBytes);
-            var dataUrl = $"data:image/jpeg;base64,{base64Image}";
+            // Add each panorama
+            for (int i = 0; i < panoramaFiles.Count; i++)
+            {
+                var (filePath, multiRes) = panoramaFiles[i];
+                var fileName = Path.GetFileName(filePath);
 
-            sb.AppendLine($@"
+                sb.AppendLine($@"
     <div class='pano-container'>
-        <h2 class='pano-title'>{fileName}</h2>
+        <h2 class='pano-title'>{fileName}</h2>");
+
+                // Add image info if it's a multi-resolution image
+                if (multiRes != null)
+                {
+                    sb.AppendLine($@"
+        <p class='image-info'>Original size: {multiRes.Width}x{multiRes.Height} pixels (Multi-resolution enabled)</p>");
+                }
+
+                sb.AppendLine($@"
         <div id='panorama{i}' class='panorama'></div>
-        <script>
+        <script>");
+
+                if (multiRes != null)
+                {
+                    // Multi-resolution configuration
+                    var relativePath = Path.GetRelativePath(
+                        Path.GetDirectoryName(outputPath),
+                        multiRes.BasePath).Replace("\\", "/");
+
+                    sb.AppendLine($@"
+            pannellum.viewer('panorama{i}', {{
+                type: 'multires',
+                multiRes: {{
+                    basePath: '{relativePath}',
+                    path: '/%l_%x_%y.jpg',
+                    fallbackPath: '/fallback/%s.jpg',
+                    extension: 'jpg',
+                    tileResolution: {multiRes.TileSize},
+                    maxLevel: {multiRes.Levels - 1},
+                    cubeResolution: {multiRes.Width}
+                }},
+                autoLoad: true,
+                autoRotate: -2,
+                compass: true,
+                showFullscreenCtrl: true,
+                mouseZoom: true
+            }});");
+                }
+                else
+                {
+                    // Regular panorama configuration
+                    var imageBytes = File.ReadAllBytes(filePath);
+                    var base64Image = Convert.ToBase64String(imageBytes);
+                    var dataUrl = $"data:image/jpeg;base64,{base64Image}";
+
+                    sb.AppendLine($@"
             pannellum.viewer('panorama{i}', {{
                 type: 'equirectangular',
                 panorama: '{dataUrl}',
                 autoLoad: true,
                 autoRotate: -2,
-                compass: true
-            }});
-        </script>
-    </div>");
-        }
+                compass: true,
+                showFullscreenCtrl: true,
+                mouseZoom: true
+            }});");
+                }
 
-        // Close HTML
-        sb.AppendLine(@"
+                sb.AppendLine(@"        </script>
+    </div>");
+            }
+
+            // Close HTML
+            sb.AppendLine(@"
 </body>
 </html>");
 
-        // Write the file
-        File.WriteAllText(outputPath, sb.ToString());
+            // Write the file
+            File.WriteAllText(outputPath, sb.ToString());
+        }
     }
 }

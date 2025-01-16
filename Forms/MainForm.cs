@@ -286,7 +286,7 @@ namespace FacebookPanoPrepper.Forms
 
         private async Task ProcessFilesAsync(string[] files)
         {
-            var processedFiles = new List<string>();
+            var processedFiles = new List<(string FilePath, Models.MultiResImage MultiRes)>();
             _statusProgress.Maximum = files.Length;
             _statusProgress.Value = 0;
             dropLabel.Text = "Processing...";
@@ -305,10 +305,12 @@ namespace FacebookPanoPrepper.Forms
                 string baseOutputDir = Path.GetFullPath(_options.OutputFolder);
                 string batchDir = Path.Combine(baseOutputDir, $"Batch_{timestamp}");
                 string imagesDir = Path.Combine(batchDir, "images");
+                string tilesDir = Path.Combine(batchDir, "tiles");
 
                 // Create directories
                 Directory.CreateDirectory(batchDir);
                 Directory.CreateDirectory(imagesDir);
+                Directory.CreateDirectory(tilesDir);
 
                 _cancellationTokenSource = new CancellationTokenSource();
 
@@ -335,7 +337,17 @@ namespace FacebookPanoPrepper.Forms
                     if (report.Success)
                     {
                         batchReport.SuccessfulFiles++;
-                        processedFiles.Add(outputPath);
+
+                        var multiRes = await _processingService.CreateMultiResolutionTiles(
+                            outputPath,
+                            tilesDir);
+
+                        processedFiles.Add((outputPath, multiRes));
+
+                        if (multiRes != null)
+                        {
+                            AppendColoredText($"\nCreated multi-resolution tiles for {Path.GetFileName(file)} ({multiRes.Width}x{multiRes.Height})\n");
+                        }
                     }
 
                     AppendColoredText(report.GetRichTextSummary());
