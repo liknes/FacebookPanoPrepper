@@ -1,7 +1,4 @@
-﻿using FacebookPanoPrepper.Models;
-using System.Runtime;
-
-namespace FacebookPanoPrepper.Forms
+﻿namespace FacebookPanoPrepper.Forms
 {
     public class SettingsForm : Form
     {
@@ -30,63 +27,104 @@ namespace FacebookPanoPrepper.Forms
         private void InitializeComponents()
         {
             this.Text = "Settings";
-            this.Size = new Size(500, 400); // Increased height to accommodate advanced features
+            this.Size = new Size(550, 350);
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.StartPosition = FormStartPosition.CenterParent;
 
+            // Create main layout panel
             _mainLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 Padding = new Padding(10),
                 ColumnCount = 3,
-                RowCount = 6
+                RowCount = 5,
+                Height = 200
             };
 
+            // Configure column styles
+            _mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150F));  // Labels
+            _mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));   // Controls
+            _mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90F));   // Extra (buttons/units)
+
+            // Configure row styles
+            for (int i = 0; i < 5; i++)
+            {
+                _mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
+            }
+
             // Quality settings
-            _mainLayout.Controls.Add(new Label { Text = "JPEG Quality:" }, 0, 0);
+            var qualityLabel = new Label
+            {
+                Text = "JPEG Quality:",
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            _mainLayout.Controls.Add(qualityLabel, 0, 0);
+
             _qualityInput = new NumericUpDown
             {
                 Minimum = 1,
                 Maximum = 100,
-                Value = _settings.JpegQuality
+                Value = _settings.JpegQuality,
+                Width = 80,
+                Anchor = AnchorStyles.Left
             };
             _mainLayout.Controls.Add(_qualityInput, 1, 0);
-            _mainLayout.Controls.Add(new Label { Text = "%" }, 2, 0);
+
+            var percentLabel = new Label
+            {
+                Text = "%",
+                Anchor = AnchorStyles.Left,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            _mainLayout.Controls.Add(percentLabel, 2, 0);
+
+            // Output folder
+            var outputLabel = new Label
+            {
+                Text = "Output Folder:",
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            _mainLayout.Controls.Add(outputLabel, 0, 1);
+
+            _outputFolderPath = new TextBox
+            {
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                Width = 250
+            };
+            _mainLayout.Controls.Add(_outputFolderPath, 1, 1);
+
+            _browseButton = new Button
+            {
+                Text = "Browse...",
+                Width = 80,
+                Anchor = AnchorStyles.Left
+            };
+            _browseButton.Click += BrowseButton_Click;
+            _mainLayout.Controls.Add(_browseButton, 2, 1);
 
             // Auto-resize checkbox
             _autoResizeCheck = new CheckBox
             {
                 Text = "Auto-resize large images",
-                Checked = _settings.AutoResize
+                Checked = _settings.AutoResize,
+                Anchor = AnchorStyles.Left,
+                AutoSize = true
             };
-            _mainLayout.Controls.Add(_autoResizeCheck, 0, 1);
+            _mainLayout.Controls.Add(_autoResizeCheck, 1, 2);
 
             // Aspect ratio checkbox
             _aspectRatioCheck = new CheckBox
             {
                 Text = "Auto-correct aspect ratio",
-                Checked = _settings.AutoCorrectAspectRatio
+                Checked = _settings.AutoCorrectAspectRatio,
+                Anchor = AnchorStyles.Left,
+                AutoSize = true
             };
-            _mainLayout.Controls.Add(_aspectRatioCheck, 0, 2);
-
-            // Output folder
-            _mainLayout.Controls.Add(new Label { Text = "Output Folder:" }, 0, 3);
-            _outputFolderPath = new TextBox
-            {
-                Text = _settings.OutputFolder,
-                Width = 250
-            };
-            _mainLayout.Controls.Add(_outputFolderPath, 1, 3);
-
-            _browseButton = new Button
-            {
-                Text = "Browse...",
-                Width = 80
-            };
-            _browseButton.Click += BrowseButton_Click;
-            _mainLayout.Controls.Add(_browseButton, 2, 3);
+            _mainLayout.Controls.Add(_aspectRatioCheck, 1, 3);
 
             // Add a GroupBox for advanced features
             var advancedGroup = new GroupBox
@@ -161,32 +199,36 @@ namespace FacebookPanoPrepper.Forms
             // Add controls to advanced group
             advancedGroup.Controls.AddRange(new Control[]
             {
-                _multiResCheckbox,
-                _webServerCheckbox,
-                portLabel,
-                _portInput,
-                warningLabel
+        _multiResCheckbox,
+        _webServerCheckbox,
+        portLabel,
+        _portInput,
+        warningLabel
             });
 
-            // Buttons
+            // Buttons panel
             var buttonPanel = new FlowLayoutPanel
             {
                 FlowDirection = FlowDirection.RightToLeft,
                 Dock = DockStyle.Bottom,
-                Height = 40
+                Height = 40,
+                Padding = new Padding(10, 5, 10, 5)
             };
 
             _saveButton = new Button
             {
                 Text = "Save",
-                DialogResult = DialogResult.OK
+                DialogResult = DialogResult.OK,
+                Width = 80
             };
             _saveButton.Click += SaveButton_Click;
 
             _cancelButton = new Button
             {
                 Text = "Cancel",
-                DialogResult = DialogResult.Cancel
+                DialogResult = DialogResult.Cancel,
+                Width = 80,
+                Margin = new Padding(10, 0, 0, 0)
             };
 
             buttonPanel.Controls.Add(_cancelButton);
