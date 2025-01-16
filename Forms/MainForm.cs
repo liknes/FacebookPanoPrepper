@@ -660,17 +660,41 @@ namespace FacebookPanoPrepper.Forms
                     }
 
                     if (MessageBox.Show(
-                        message,
-                        "Processing Complete",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Question) == DialogResult.Yes)
+    message,
+    "Processing Complete",
+    MessageBoxButtons.YesNo,
+    MessageBoxIcon.Question) == DialogResult.Yes)
                     {
-                        Process.Start(new ProcessStartInfo
+                        if (_options.UseLocalWebServer)
                         {
-                            FileName = viewerPath,
-                            UseShellExecute = true
-                        });
+                            // Always use the web server URL when opening the viewer
+                            var batchName = Path.GetFileName(batchDir);
+                            var url = $"http://localhost:{_options.WebServerPort}/{batchName}/viewer.html";
+                            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                        }
+                        else
+                        {
+                            // Fall back to file protocol only if web server is disabled
+                            Process.Start(new ProcessStartInfo
+                            {
+                                FileName = viewerPath,
+                                UseShellExecute = true
+                            });
+                        }
                     }
+
+                    //if (MessageBox.Show(
+                    //    message,
+                    //    "Processing Complete",
+                    //    MessageBoxButtons.YesNo,
+                    //    MessageBoxIcon.Question) == DialogResult.Yes)
+                    //{
+                    //    Process.Start(new ProcessStartInfo
+                    //    {
+                    //        FileName = viewerPath,
+                    //        UseShellExecute = true
+                    //    });
+                    //}
                 }
             }
             catch (Exception ex)

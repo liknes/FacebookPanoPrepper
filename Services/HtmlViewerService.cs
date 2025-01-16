@@ -149,22 +149,28 @@ namespace FacebookPanoPrepper.Services
             background: #f5f5f5;
         }
         .sidebar {
-            width: 250px;
-            background: #2c3e50;
-            height: 100vh;
-            padding: 20px 0;
-            overflow-y: auto;
-            position: fixed;
-            transition: margin-left 0.3s ease;
-        }
+        width: 250px;
+        background: #2c3e50;
+        height: 100vh;
+        padding: 60px 0 20px 0;  /* Increased top padding to make room for header */
+        overflow-y: auto;
+        position: fixed;
+        transition: margin-left 0.3s ease;
+    }
         .sidebar-collapsed {
             margin-left: -250px;
         }
         .sidebar h2 {
-            color: white;
-            padding: 0 20px;
-            font-size: 16px;
-            margin-bottom: 20px;
+        color: white;
+        padding: 0 20px;
+        font-size: 16px;
+        margin: 0;  /* Remove margin */
+        position: fixed;  /* Fix the header position */
+        top: 20px;
+        left: 60px;  /* Position after the toggle button */
+        z-index: 1000;
+        background: #2c3e50;
+        padding-right: 40px;
         }
         .batch-link {
             display: block;
@@ -208,21 +214,21 @@ namespace FacebookPanoPrepper.Services
             height: 500px;
         }
         .toggle-btn {
-            position: fixed;
-            left: 10px;
-            top: 10px;
-            z-index: 1000;
-            background: #2c3e50;
-            color: white;
-            border: none;
-            padding: 10px;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: left 0.3s ease;
-        }
-        .toggle-btn.collapsed {
-            left: 260px;
-        }
+        position: fixed;
+        left: 20px;
+        top: 20px;
+        z-index: 1000;
+        background: #2c3e50;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: left 0.3s ease;
+    }
+    .toggle-btn.collapsed {
+        left: 10px;  /* Reduced from 260px */
+    }
         .image-info {
             color: #666;
             font-size: 0.9em;
