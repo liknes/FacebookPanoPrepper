@@ -15,6 +15,7 @@ namespace FacebookPanoPrepper.Forms
         private readonly ILogger<MainForm> _logger;
         private ProcessingOptions _options;
         private LocalWebServer _webServer;
+        private bool _isProcessing = false;
 
         // Form controls
         private TableLayoutPanel tableLayoutPanel;
@@ -440,11 +441,41 @@ namespace FacebookPanoPrepper.Forms
             this.DragDrop += MainForm_DragDrop;
         }
 
-        private async void MainForm_DragDrop(object? sender, DragEventArgs e)
+        private async void MainForm_DragDrop(object sender, DragEventArgs e)
         {
-            if (e.Data?.GetData(DataFormats.FileDrop) is string[] files)
+            if (_isProcessing)
             {
-                await ProcessFilesAsync(files);
+                MessageBox.Show(
+                    "Please wait for the current processing to complete.",
+                    "Processing in Progress",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                _isProcessing = true;
+                this.AllowDrop = false;
+
+                if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                {
+                    string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                    await ProcessFilesAsync(files);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "An error occurred while handling dropped files:\n\n" + ex.Message,
+                    "Drop Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+            finally
+            {
+                _isProcessing = false;
+                this.AllowDrop = true;
             }
         }
 
@@ -490,10 +521,19 @@ namespace FacebookPanoPrepper.Forms
                 {
                     try
                     {
-                        _webServer?.Dispose();
-                        _webServer = new LocalWebServer(batchDir, _options.WebServerPort);
+                        // Dispose of existing web server if it exists
+                        if (_webServer != null)
+                        {
+                            await _webServer.DisposeAsync();
+                            _webServer = null;
+                        }
+
+                        var rootDir = Path.GetFullPath(_options.OutputFolder);
+                        AppendColoredText($"Starting web server with root directory: {rootDir}\n");
+
+                        _webServer = new LocalWebServer(rootDir, _options.WebServerPort);
                         await _webServer.StartAsync();
-                        AppendColoredText("Local web server started successfully.\n");
+                        AppendColoredText($"|c{Color.Green.ToArgb()}|Local web server started successfully.\n|");
                     }
                     catch (Exception ex)
                     {
@@ -590,7 +630,7 @@ namespace FacebookPanoPrepper.Forms
                 if (processedFiles.Any())
                 {
                     var viewerPath = Path.Combine(batchDir, "viewer.html");
-                    var htmlService = new HtmlViewerService();
+                    var htmlService = new HtmlViewerService(_settings);
 
                     var progress = new Progress<string>(status =>
                     {
@@ -608,7 +648,6 @@ namespace FacebookPanoPrepper.Forms
                         MessageBox.Show($"Error creating viewer: {ex.Message}", "Viewer Error",
                             MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
-
 
                     // Save processing report
                     var reportPath = Path.Combine(batchDir, "processing_report.txt");
@@ -704,5 +743,7 @@ namespace FacebookPanoPrepper.Forms
             // Ensure the text box is using the correct background color
             logTextBox.BackColor = ThemeManager.GetCurrentScheme().Background;
         }
+
+
     }
 }
