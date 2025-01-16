@@ -590,9 +590,25 @@ namespace FacebookPanoPrepper.Forms
                 if (processedFiles.Any())
                 {
                     var viewerPath = Path.Combine(batchDir, "viewer.html");
-                    //var htmlService = new HtmlViewerService(_options.UseLocalWebServer ? _webServer?.BaseUrl : null);
                     var htmlService = new HtmlViewerService();
-                    htmlService.CreateHtmlViewer(viewerPath, processedFiles);
+
+                    var progress = new Progress<string>(status =>
+                    {
+                        _statusLabel.Text = status;
+                        Application.DoEvents(); // Keep UI responsive
+                    });
+
+                    try
+                    {
+                        await htmlService.CreateHtmlViewerAsync(viewerPath, processedFiles, progress);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error creating HTML viewer");
+                        MessageBox.Show($"Error creating viewer: {ex.Message}", "Viewer Error",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+
 
                     // Save processing report
                     var reportPath = Path.Combine(batchDir, "processing_report.txt");

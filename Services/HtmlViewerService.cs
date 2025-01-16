@@ -5,14 +5,33 @@ namespace FacebookPanoPrepper.Services
 {
     public class HtmlViewerService
     {
-        private string CreateBase64DataUrl(string imagePath)
+        private async Task<string> CreateBase64DataUrlAsync(string imagePath, IProgress<string> progress = null)
         {
-            var imageBytes = File.ReadAllBytes(imagePath);
-            var base64Image = Convert.ToBase64String(imageBytes);
+            progress?.Report($"Reading {Path.GetFileName(imagePath)}...");
+
+            using var fileStream = new FileStream(imagePath, FileMode.Open, FileAccess.Read);
+            using var memoryStream = new MemoryStream();
+
+            byte[] buffer = new byte[81920]; // 80KB buffer for better performance
+            long totalBytes = fileStream.Length;
+            long bytesRead = 0;
+            int count;
+
+            while ((count = await fileStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            {
+                await memoryStream.WriteAsync(buffer, 0, count);
+                bytesRead += count;
+
+                var percentage = (int)((bytesRead * 100) / totalBytes);
+                progress?.Report($"Processing {Path.GetFileName(imagePath)}: {percentage}%");
+            }
+
+            progress?.Report($"Converting {Path.GetFileName(imagePath)} to base64...");
+            var base64Image = Convert.ToBase64String(memoryStream.ToArray());
             return $"data:image/jpeg;base64,{base64Image}";
         }
 
-        public void CreateHtmlViewer(string outputPath, List<(string FilePath, PanoramaResolutions Resolutions)> panoramaFiles)
+        public async Task CreateHtmlViewerAsync(string outputPath, List<(string FilePath, PanoramaResolutions Resolutions)> panoramaFiles, IProgress<string> progress = null)
         {
             var sb = new StringBuilder();
 
@@ -70,13 +89,21 @@ namespace FacebookPanoPrepper.Services
             // Add each panorama
             for (int i = 0; i < panoramaFiles.Count; i++)
             {
+                progress?.Report($"Processing panorama {i + 1} of {panoramaFiles.Count}");
+
                 var (filePath, resolutions) = panoramaFiles[i];
                 var fileName = Path.GetFileName(filePath);
 
                 // Create data URLs for each resolution
-                var lowResData = resolutions.LowResPath != null ? CreateBase64DataUrl(resolutions.LowResPath) : null;
-                var mediumResData = resolutions.MediumResPath != null ? CreateBase64DataUrl(resolutions.MediumResPath) : null;
-                var fullResData = CreateBase64DataUrl(resolutions.FullResPath);
+                var lowResData = resolutions.LowResPath != null
+                    ? await CreateBase64DataUrlAsync(resolutions.LowResPath, progress)
+                    : null;
+
+                var mediumResData = resolutions.MediumResPath != null
+                    ? await CreateBase64DataUrlAsync(resolutions.MediumResPath, progress)
+                    : null;
+
+                var fullResData = await CreateBase64DataUrlAsync(resolutions.FullResPath, progress);
 
                 sb.AppendLine($@"
     <div class='pano-container'>
@@ -144,8 +171,10 @@ namespace FacebookPanoPrepper.Services
 </body>
 </html>");
 
-            // Write the file
-            File.WriteAllText(outputPath, sb.ToString());
+            // Write the file asynchronously
+            progress?.Report("Saving viewer file...");
+            await File.WriteAllTextAsync(outputPath, sb.ToString());
+            progress?.Report("Viewer created successfully!");
         }
     }
 }
