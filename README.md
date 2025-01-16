@@ -23,7 +23,7 @@ A Windows desktop application that helps prepare panoramic images for optimal di
 - Sufficient disk space for image processing
 
 ## Screenshot
-<img src="screenshots/panoprepper-dark.png" alt="Facebook Pano Prepper Main Window" width="800"/>
+![Facebook Pano Prepper](https://github.com/liknes/FacebookPanoPrepper/blob/main/Screenshots/panoprepper-dark.png)
 
 ## Installation
 
