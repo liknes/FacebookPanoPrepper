@@ -318,11 +318,21 @@ namespace FacebookPanoPrepper.Forms
                 // Add menus to strip
                 menuStrip.Items.AddRange(new ToolStripItem[] { fileMenu, viewMenu, helpMenu });
 
+                // Add Tools menu
+                var toolsMenu = new ToolStripMenuItem("Tools");
+                var metadataEditorItem = new ToolStripMenuItem("Metadata Editor...");
+                metadataEditorItem.Click += (s, e) =>
+                {
+                    using var editor = new MetadataEditorForm();
+                    editor.ShowDialog(this);
+                };
+                toolsMenu.DropDownItems.Add(metadataEditorItem);
+                menuStrip.Items.Add(toolsMenu);
+
                 // Set initial theme colors
                 menuStrip.BackColor = ThemeManager.GetCurrentScheme().Background;
                 menuStrip.ForeColor = ThemeManager.GetCurrentScheme().Text;
 
-                // Add menu strip to form
                 this.Controls.Add(menuStrip);
                 this.MainMenuStrip = menuStrip;
             }
