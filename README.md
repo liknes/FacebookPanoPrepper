@@ -26,6 +26,8 @@ A Windows desktop application that helps prepare panoramic images for optimal di
 
  ## Screenshot
 ![Facebook Pano Prepper](https://github.com/liknes/FacebookPanoPrepper/blob/main/Screenshots/panoprepper-dark.png)
+![Facebook Pano Prepper](https://github.com/liknes/FacebookPanoPrepper/blob/main/Screenshots/gallery-local-server.png)
+![Facebook Pano Prepper](https://github.com/liknes/FacebookPanoPrepper/blob/main/Screenshots/gallery-no-local-server.png)
  
 ## Web Hosting Capability
 
