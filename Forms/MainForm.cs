@@ -675,7 +675,7 @@ namespace FacebookPanoPrepper.Forms
                         {
                             // Use web server URL
                             var batchName = Path.GetFileName(batchDir);
-                            var url = $"http://localhost:{_options.WebServerPort}/{batchName}/viewer.html";
+                            var url = _options.UseLocalWebServer ? $"http://localhost:{_options.WebServerPort}/{batchName}/viewer.html" : $"/{batchName}/viewer.html";
                             Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
                         }
                         else
