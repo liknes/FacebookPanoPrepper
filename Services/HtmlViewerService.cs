@@ -279,7 +279,7 @@ namespace FacebookPanoPrepper.Services
         // Function to load the batch list
         async function loadBatchList() {{
             try {{
-                const response = await fetch(`http://localhost:{_settings.WebServerPort}/api/batches`);
+                const response = await fetch(`/api/batches`);
                 if (!response.ok) throw new Error('Network response was not ok');
                 const batches = await response.json();
                 
@@ -313,7 +313,7 @@ namespace FacebookPanoPrepper.Services
             
             try {{
                 const port = {_settings.WebServerPort};
-                const url = `http://localhost:${{port}}/${{batchName}}/viewer.html`;
+                const url = `/${{batchName}}/viewer.html`;
                 window.location.href = url;
             }} catch (error) {{
                 console.error('Error loading batch:', error);
