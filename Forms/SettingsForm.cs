@@ -231,6 +231,38 @@
                 Margin = new Padding(10, 0, 0, 0)
             };
 
+            // Add a separator
+            _mainLayout.Controls.Add(new Label
+            {
+                Height = 10,
+                Dock = DockStyle.Top
+            });
+
+            // Metadata settings group
+            var metadataGroup = new GroupBox
+            {
+                Text = "Metadata",
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                Padding = new Padding(10)
+            };
+
+            var suggestTitlesCheckbox = new CheckBox
+            {
+                Text = "Suggest titles based on photo location",
+                Checked = _settings.SuggestTitlesFromLocation,
+                AutoSize = true
+            };
+            suggestTitlesCheckbox.CheckedChanged += (s, e) =>
+            {
+                _settings.SuggestTitlesFromLocation = suggestTitlesCheckbox.Checked;
+            };
+
+            metadataGroup.Controls.Add(suggestTitlesCheckbox);
+
+            // Add to layout
+            _mainLayout.Controls.Add(metadataGroup);
+
             buttonPanel.Controls.Add(_cancelButton);
             buttonPanel.Controls.Add(_saveButton);
 

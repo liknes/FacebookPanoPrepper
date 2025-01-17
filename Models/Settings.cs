@@ -9,6 +9,7 @@
     public bool EnableMultiResolution { get; set; }
     public bool UseLocalWebServer { get; set; }
     public int WebServerPort { get; set; }
+    public bool SuggestTitlesFromLocation { get; set; } = true;
 
     public Settings()
     {
@@ -24,5 +25,6 @@
         EnableMultiResolution = false;
         UseLocalWebServer = false;
         WebServerPort = 8080;
+        SuggestTitlesFromLocation = true;
     }
 }

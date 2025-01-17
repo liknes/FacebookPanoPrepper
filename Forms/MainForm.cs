@@ -323,7 +323,7 @@ namespace FacebookPanoPrepper.Forms
                 var metadataEditorItem = new ToolStripMenuItem("Metadata Editor...");
                 metadataEditorItem.Click += (s, e) =>
                 {
-                    using var editor = new MetadataEditorForm();
+                    using var editor = new MetadataEditorForm(_settings);
                     editor.ShowDialog(this);
                 };
                 toolsMenu.DropDownItems.Add(metadataEditorItem);
