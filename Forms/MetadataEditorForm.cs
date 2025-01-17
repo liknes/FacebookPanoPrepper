@@ -33,12 +33,15 @@ public class MetadataEditorForm : Form
         InitializeControls();
         SetupLayout();
         ApplyTheme();
+
+        // Set focus to description textbox
+        _descriptionTextBox.Select();
     }
 
     private void InitializeComponent()
     {
         Text = "Metadata Editor";
-        MinimumSize = new Size(600, 1000);
+        MinimumSize = new Size(700, 1000);
         StartPosition = FormStartPosition.CenterParent;
         KeyPreview = true;
 
@@ -420,6 +423,7 @@ public class MetadataEditorForm : Form
 
         // Create title suggestion
         string titleSuggestion = "";
+        string locationName = "";  // Store location name for description
         
         // Try to get location name from coordinates
         if (_settings.SuggestTitlesFromLocation && latitude.HasValue && longitude.HasValue)
@@ -443,7 +447,7 @@ public class MetadataEditorForm : Form
 
                     if (location?.Address != null)
                     {
-                        var locationName = GetLocationName(location.Address);
+                        locationName = GetLocationName(location.Address);
                         if (!string.IsNullOrEmpty(locationName))
                         {
                             titleSuggestion = locationName;
@@ -461,6 +465,7 @@ public class MetadataEditorForm : Form
         if (string.IsNullOrEmpty(titleSuggestion))
         {
             titleSuggestion = "Place";
+            locationName = "Place";
         }
 
         // Add date if available
@@ -476,6 +481,9 @@ public class MetadataEditorForm : Form
 
         Debug.WriteLine($"Final title suggestion: {titleSuggestion}");
         _titleTextBox.Text = titleSuggestion;
+        
+        // Set description template
+        _descriptionTextBox.Text = $"Panorama taken in {locationName}";
     }
 
     private double? ParseGpsCoordinate(string coordinate)
