@@ -630,8 +630,6 @@ namespace FacebookPanoPrepper.Forms
                 if (processedFiles.Any())
                 {
                     var viewerPath = Path.Combine(batchDir, "viewer.html");
-                    var htmlService = new HtmlViewerService(_settings);
-
                     var progress = new Progress<string>(status =>
                     {
                         _statusLabel.Text = status;
@@ -640,7 +638,18 @@ namespace FacebookPanoPrepper.Forms
 
                     try
                     {
-                        await htmlService.CreateHtmlViewerAsync(viewerPath, processedFiles, progress);
+                        if (_options.UseLocalWebServer)
+                        {
+                            // Use existing web server HTML viewer
+                            var htmlService = new HtmlViewerService(_settings);
+                            await htmlService.CreateHtmlViewerAsync(viewerPath, processedFiles, progress);
+                        }
+                        else
+                        {
+                            // Use standalone HTML viewer
+                            var standaloneService = new StandaloneHtmlViewerService();
+                            await standaloneService.CreateHtmlViewerAsync(viewerPath, processedFiles, progress);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -659,22 +668,19 @@ namespace FacebookPanoPrepper.Forms
                         message += "\n\nNote: The viewer will work as long as this application is running.";
                     }
 
-                    if (MessageBox.Show(
-    message,
-    "Processing Complete",
-    MessageBoxButtons.YesNo,
-    MessageBoxIcon.Question) == DialogResult.Yes)
+                    if (MessageBox.Show(message, "Processing Complete",
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                     {
                         if (_options.UseLocalWebServer)
                         {
-                            // Always use the web server URL when opening the viewer
+                            // Use web server URL
                             var batchName = Path.GetFileName(batchDir);
                             var url = $"http://localhost:{_options.WebServerPort}/{batchName}/viewer.html";
                             Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
                         }
                         else
                         {
-                            // Fall back to file protocol only if web server is disabled
+                            // Open file directly
                             Process.Start(new ProcessStartInfo
                             {
                                 FileName = viewerPath,
@@ -682,19 +688,6 @@ namespace FacebookPanoPrepper.Forms
                             });
                         }
                     }
-
-                    //if (MessageBox.Show(
-                    //    message,
-                    //    "Processing Complete",
-                    //    MessageBoxButtons.YesNo,
-                    //    MessageBoxIcon.Question) == DialogResult.Yes)
-                    //{
-                    //    Process.Start(new ProcessStartInfo
-                    //    {
-                    //        FileName = viewerPath,
-                    //        UseShellExecute = true
-                    //    });
-                    //}
                 }
             }
             catch (Exception ex)
